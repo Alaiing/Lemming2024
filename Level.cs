@@ -14,14 +14,20 @@ namespace Lemmings2024
 {
     public class Level
     {
+        private const string MASK_SUFFIX = "-mask";
+
         private Texture2D _texture;
         public Texture2D Texture => _texture;
         private Color[] _textureData;
-        public Color[] TextureData => _textureData;
+ 
+        private Texture2D _maskTexture;
+        public Texture2D MaskTexture => _maskTexture;
+        private Color[] _maskTextureData;
+        public Color[] MaskTextureData => _maskTextureData;
         private int _lemmingsCount;
         public int LemmingsCount => _lemmingsCount;
-        private float _lemmingsRate;
-        public float LemmingRate => _lemmingsRate;
+        private int _lemmingsRate;
+        public int LemmingRate => _lemmingsRate;
         private float _winRate;
         public float WinRate => _winRate;
         private float _duration;
@@ -97,7 +103,7 @@ namespace Lemmings2024
                             _lemmingsCount = int.Parse(dataValue);
                             break;
                         case nameof(_lemmingsRate):
-                            _lemmingsRate = float.Parse(dataValue);
+                            _lemmingsRate = int.Parse(dataValue);
                             break;
                         case nameof(_duration):
                             _duration = float.Parse(dataValue);
@@ -151,6 +157,7 @@ namespace Lemmings2024
             for (int i = 0; i < length; i++)
             {
                 _textureData[startIndex + i] = Color.Transparent;
+                _maskTextureData[startIndex + i] = Color.Transparent;
             }
             UpdateTexture();
         }
@@ -158,6 +165,7 @@ namespace Lemmings2024
         private void UpdateTexture()
         {
             _texture.SetData(_textureData);
+            _maskTexture.SetData(_maskTextureData);
         }
 
         public void ReloadTexture()
@@ -165,10 +173,15 @@ namespace Lemmings2024
             if (_texture != null)
             {
                 _content.UnloadAsset(_textureName);
+                _content.UnloadAsset(_textureName + MASK_SUFFIX);
             }
             _texture = _content.Load<Texture2D>(_textureName);
             _textureData = new Color[_texture.Width * _texture.Height];
             _texture.GetData(_textureData);
+
+            _maskTexture = _content.Load<Texture2D>(_textureName + MASK_SUFFIX);
+            _maskTextureData = new Color[_texture.Width * _texture.Height];
+            _maskTexture.GetData(_maskTextureData);
         }
 
     }

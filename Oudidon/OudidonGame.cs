@@ -24,11 +24,15 @@ namespace Oudidon
         public SpriteBatch SpriteBatch => _spriteBatch;
 
         protected RenderTarget2D _renderTarget;
-        protected Color _renderColor = Color.White;
 
         protected SimpleStateMachine _stateMachine;
 
         protected virtual string ConfigFileName => "config.ini";
+
+        public float DeltaTime { get; private set; }
+        public GameTime GameTime { get; private set; }
+        protected float _timeScale;
+        public bool IsPause => _timeScale == 0;
 
         public OudidonGame() : base()
         {
@@ -57,6 +61,7 @@ namespace Oudidon
 
         protected override void Initialize()
         {
+            _timeScale = 1f;
             _stateMachine = new SimpleStateMachine();
             InitStateMachine();
             base.Initialize();
@@ -68,8 +73,13 @@ namespace Oudidon
 
         protected override void Update(GameTime gameTime)
         {
-            UpdateStateMachine(gameTime);
-            UpdateComponents(gameTime);
+            DeltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            gameTime.ElapsedGameTime *= _timeScale;
+            GameTime = gameTime;
+            CameraShake.Update((float)GameTime.ElapsedGameTime.TotalSeconds);
+            CameraFade.Update((float)GameTime.ElapsedGameTime.TotalSeconds);
+            UpdateStateMachine(GameTime);
+            UpdateComponents(GameTime);
         }
 
         protected void UpdateStateMachine(GameTime gameTime)
@@ -120,7 +130,7 @@ namespace Oudidon
         {
             GraphicsDevice.SetRenderTarget(null);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
-            _spriteBatch.Draw(_renderTarget, new Rectangle((int)MathF.Floor(CameraShake.ShakeOffset.X * _screenScaleX), (int)MathF.Floor(CameraShake.ShakeOffset.Y * _screenScaleY), _screenWidth * _screenScaleX, _screenHeight * _screenScaleY), _renderColor);
+            _spriteBatch.Draw(_renderTarget, new Rectangle((int)MathF.Floor(CameraShake.ShakeOffset.X * _screenScaleX), (int)MathF.Floor(CameraShake.ShakeOffset.Y * _screenScaleY), _screenWidth * _screenScaleX, _screenHeight * _screenScaleY), CameraFade.Color);
             _spriteBatch.End();
             base.EndDraw();
         }

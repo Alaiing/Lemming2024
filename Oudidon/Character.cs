@@ -216,6 +216,7 @@ namespace Oudidon
 
         public override void Update(GameTime gameTime)
         {
+            base.Update(gameTime);
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             Animate(deltaTime);
             Move(deltaTime);

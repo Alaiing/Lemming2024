@@ -5,6 +5,7 @@ using Oudidon;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Lemmings2024
 {
@@ -12,6 +13,7 @@ namespace Lemmings2024
     {
         public const int PLAYGROUND_WIDTH = 1600;
         public const int PLAYGROUND_HEIGHT = 160;
+        public const float FADE_DURATION = 0.5f;
 
         private const string STATE_MENU = "Menu";
         private const string STATE_PRE_GAME = "Pre-Game";
@@ -19,6 +21,9 @@ namespace Lemmings2024
         private const string STATE_POST_GAME = "Post-Game";
 
         public const int LINE_DIG_LENGTH = 9;
+        public const float RATE_INCREASE_SPEED = 20f;
+
+        public enum ClickType { Pressed, Clicked, DoubleClicked }
 
         private RenderTarget2D _gameRender;
 
@@ -36,6 +41,9 @@ namespace Lemmings2024
 
         private Texture2D _hudTexture;
         private Texture2D _hudSelectTexture;
+        private Texture2D _radarFrameTexture;
+        Rectangle _radarRect;
+        float _radarRatio;
 
         private SpriteSheet _digits;
 
@@ -46,11 +54,22 @@ namespace Lemmings2024
         private Character _exit;
 
         private int _currentLemmingAction;
-        private Action<int>[] _hudActions;
-        private Func<Lemming, bool>[] _lemmingActions;
+        private (Action<int>, ClickType)[] _hudActions;
+        private Func<Lemming[], bool>[] _lemmingActions;
         private int[] _availableActions = new int[8];
 
         private Level _currentLevel;
+        private float _spawnTimer = 0;
+        private float _scrollOffset;
+        private float ScrollOffset
+        {
+            get => _scrollOffset;
+            set
+            {
+                _scrollOffset = Math.Clamp(value, 0, PLAYGROUND_WIDTH - ScreenWidth / 2);
+            }
+        }
+
 
         protected override void Initialize()
         {
@@ -62,23 +81,23 @@ namespace Lemmings2024
             EventsManager.ListenTo<Lemming>(Lemming.EVENT_DIG_LINE, OnLemmingDigLine);
             EventsManager.ListenTo<Lemming>(Lemming.EVENT_SAVED, OnLemmingSaved);
 
-            _hudActions = new Action<int>[]
+            _hudActions = new (Action<int>, ClickType)[]
                             {
-                                ActionModifySpawn,
-                                ActionModifySpawn,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionLemming,
-                                ActionPause,
-                                ActionArmageddon
+                                (ActionModifySpawn, ClickType.Pressed),
+                                (ActionModifySpawn, ClickType.Pressed),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionLemming, ClickType.Clicked),
+                                (ActionPause, ClickType.Clicked),
+                                (ActionArmageddon, ClickType.DoubleClicked)
                             };
 
-            _lemmingActions = new Func<Lemming, bool>[]
+            _lemmingActions = new Func<Lemming[], bool>[]
             {
                 LemmingActionClimber,
                 LemmingActionFloater,
@@ -114,7 +133,11 @@ namespace Lemmings2024
             _postGameBackground = Content.Load<Texture2D>("post_game");
             _hudTexture = Content.Load<Texture2D>("HUD");
             _hudSelectTexture = Content.Load<Texture2D>("HUD_select");
+            _radarFrameTexture = Content.Load<Texture2D>("radar-frame");
             _digits = new SpriteSheet(Content, "digits", 8, 8, Point.Zero);
+            _radarRect = new Rectangle(416, PLAYGROUND_HEIGHT + 16 + 2, 200, 20);
+            _radarRatio = (float)PLAYGROUND_WIDTH / _radarRect.Width;
+
 
             _lemmingSprite = new SpriteSheet(Content, "lemming", 20, 20, new Point(9, 10));
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_WALK, 0, 7, Lemming.BASE_SPEED);
@@ -165,8 +188,6 @@ namespace Lemmings2024
             return MouseCursor.FromTexture2D(_mouseCursorPointScaled, _mouseCursorPointScaled.Width / 2, _mouseCursorPointScaled.Height / 2);
         }
 
-        private float _spawnTimer = 0;
-        private float _scrollOffset = 640;
         protected override void Update(GameTime gameTime)
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
@@ -190,7 +211,7 @@ namespace Lemmings2024
             _lemmings.Remove(deadLemming);
             Components.Remove(deadLemming);
             if (_lemmings.Count == 0)
-                SetState(STATE_POST_GAME);
+                CameraFade.FadeToBlack(FADE_DURATION, OnFadeDone: () => SetState(STATE_POST_GAME));
         }
 
         private void OnLemmingSaved(Lemming savedLemming)
@@ -237,7 +258,8 @@ namespace Lemmings2024
                     _hatches[i].Deactivate();
                 }
             }
-            // TODO: load level data
+
+            CameraFade.FadeFrom(Color.Black, FADE_DURATION);
         }
 
         private void PreGameDraw(SpriteBatch batch, GameTime time)
@@ -250,16 +272,18 @@ namespace Lemmings2024
 
         private void PreGameUpdate(GameTime time, float arg2)
         {
-            MouseState mouseState = Mouse.GetState();
-            if (mouseState.LeftButton == ButtonState.Pressed)
+            if (CameraFade.IsFading)
+                return;
+            SimpleControls.GetStates();
+            if (SimpleControls.LeftMouseButtonPressedThisFrame())
             {
-                SetState(STATE_GAME);
+                CameraFade.FadeToBlack(FADE_DURATION, OnFadeDone: () => SetState(STATE_GAME));
             }
         }
 
         private void PostGameEnter()
         {
-            // TODO: load level data
+            CameraFade.FadeFromBlack(FADE_DURATION);
         }
 
         private void PostGameDraw(SpriteBatch batch, GameTime time)
@@ -271,10 +295,12 @@ namespace Lemmings2024
 
         private void PostGameUpdate(GameTime time, float arg2)
         {
-            MouseState mouseState = Mouse.GetState();
-            if (mouseState.LeftButton == ButtonState.Pressed)
+            if (CameraFade.IsFading)
+                return;
+            SimpleControls.GetStates();
+            if (SimpleControls.LeftMouseButtonPressedThisFrame())
             {
-                SetState(STATE_PRE_GAME);
+                CameraFade.FadeToBlack(FADE_DURATION, OnFadeDone: () => SetState(STATE_PRE_GAME));
             }
         }
 
@@ -283,13 +309,17 @@ namespace Lemmings2024
             Mouse.SetCursor(_mouseCursorPoint);
             _spawnCount = 0;
             _spawnTimer = 0;
+            _isSpawning = true;
+            _currentSpawnRate = _currentLevel.LemmingRate;
             _currentLevel.AvailableActions.CopyTo(_availableActions, 0);
             for (int i = 0; i < _currentLevel.HatchPositions.Length; i++)
             {
                 OpenHatch(i);
             }
             _exit.MoveTo(_currentLevel.ExitPosition.ToVector2());
-            _scrollOffset = _currentLevel.StartScrollOffset;
+            ScrollOffset = _currentLevel.StartScrollOffset;
+
+            CameraFade.FadeFromBlack(FADE_DURATION);
         }
 
         private void GameExit()
@@ -329,20 +359,23 @@ namespace Lemmings2024
 
             newLemming.MoveTo(_hatches[hatchIndex].Position + new Vector2(0, _lemmingSprite.TopMargin + 3));
             newLemming.SetScale(new Vector2(direction, 1));
-            newLemming.SetCurrentLevel(_currentLevel.TextureData);
+            newLemming.SetCurrentLevel(_currentLevel.MaskTextureData);
             Components.Add(newLemming);
             _lemmings.Add(newLemming);
         }
 
         private int _hatchIndex;
+        private float _currentSpawnRate;
+        private bool _isSpawning;
         private void SpawnLemmings(GameTime gameTime)
         {
-            if (_spawnCount < _currentLevel.LemmingsCount)
+            if (_isSpawning && _spawnCount < _currentLevel.LemmingsCount)
             {
+                float waitTime = ((100 - (int)_currentSpawnRate) / 2 + 3) * (3f / 50f);
                 _spawnTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
-                if (_spawnTimer > 100f / _currentLevel.LemmingRate)
+                if (_spawnTimer > waitTime)
                 {
-                    _spawnTimer -= 100f / _currentLevel.LemmingRate;
+                    _spawnTimer -= waitTime;
                     SpawnLemming(_hatchIndex, 1);
                     _hatchIndex = (_hatchIndex + 1) % _currentLevel.HatchPositions.Length;
                     _spawnCount++;
@@ -359,17 +392,51 @@ namespace Lemmings2024
 
             if (scaledMousePosition.X < 192)
             {
-                if (SimpleControls.LeftMouseButtonPressedThisFrame())
+                int actionIndex = scaledMousePosition.X / 16;
+                (Action<int> action, ClickType clickType) hoveredAction = _hudActions[actionIndex];
+                if (GetClickPerformed(hoveredAction.clickType))
                 {
                     // Actions
-                    int actionIndex = scaledMousePosition.X / 16;
-                    _hudActions[actionIndex]?.Invoke(actionIndex);
+                    hoveredAction.action.Invoke(actionIndex);
                 }
             }
             else if (scaledMousePosition.X >= 208)
             {
-                // Map
+                if (SimpleControls.IsLeftMouseButtonDown())
+                {
+                    float radarPositionX = scaledMousePosition.X - _radarRect.X / 2;
+                    Debug.WriteLine($"Radar position: {radarPositionX}");
+                    float playgroundPositionX = radarPositionX * _radarRatio;
+                    Debug.WriteLine($"World position: {playgroundPositionX}");
+                    ScrollOffset = playgroundPositionX * 2 - ScreenWidth / 4;
+                }
             }
+        }
+
+        float _lastClickTime;
+        private bool GetClickPerformed(ClickType clickType)
+        {
+            switch (clickType)
+            {
+                case ClickType.Clicked:
+                    return SimpleControls.LeftMouseButtonPressedThisFrame();
+                    break;
+                case ClickType.Pressed:
+                    return SimpleControls.IsLeftMouseButtonDown();
+                    break;
+                case ClickType.DoubleClicked:
+                    if (SimpleControls.LeftMouseButtonPressedThisFrame())
+                    {
+                        if (GameTime.TotalGameTime.TotalSeconds - _lastClickTime < 0.2f)
+                        {
+                            return true;
+                        }
+                        _lastClickTime = (float)GameTime.TotalGameTime.TotalSeconds;
+                    }
+                    break;
+            }
+
+            return false;
         }
 
         private void ApplyLemmingAction(Point scaledMousePosition)
@@ -377,25 +444,16 @@ namespace Lemmings2024
             if (scaledMousePosition.Y >= PLAYGROUND_HEIGHT)
                 return;
 
-            Point scrolledMousePosition = new Point(scaledMousePosition.X + (int)_scrollOffset, scaledMousePosition.Y);
+            Point scrolledMousePosition = new Point(scaledMousePosition.X + (int)ScrollOffset, scaledMousePosition.Y);
 
-            Lemming hoveredLemming = null;
-            foreach (Lemming lemming in _lemmings)
-            {
-                Rectangle bounds = lemming.GetBounds();
-                if (bounds.Contains(scrolledMousePosition))
-                {
-                    hoveredLemming = lemming;
-                    break;
-                }
-            }
+            Lemming[] hoveredLemmings = GetLemmingUnderMouse(scrolledMousePosition);
 
-            if (hoveredLemming != null)
+            if (hoveredLemmings != null && hoveredLemmings.Length > 0)
             {
                 Mouse.SetCursor(_mouseCursorSelect);
                 if (SimpleControls.LeftMouseButtonPressedThisFrame() && _availableActions[_currentLemmingAction] > 0)
                 {
-                    if (_lemmingActions[_currentLemmingAction].Invoke(hoveredLemming))
+                    if (_lemmingActions[_currentLemmingAction].Invoke(hoveredLemmings))
                         _availableActions[_currentLemmingAction]--;
                 }
             }
@@ -407,6 +465,22 @@ namespace Lemmings2024
                 //}
                 Mouse.SetCursor(_mouseCursorPoint);
             }
+        }
+
+        private Lemming[] GetLemmingUnderMouse(Point scrolledMousePosition)
+        {
+            List<(Lemming lemming, float distance)> closestLemmings = new();
+            foreach (Lemming lemming in _lemmings)
+            {
+                Rectangle bounds = lemming.GetBounds();
+                if (bounds.Contains(scrolledMousePosition))
+                {
+                    float distance = (scrolledMousePosition.ToVector2() - lemming.Position).LengthSquared();
+                    closestLemmings.Add((lemming, distance));
+                }
+            }
+            closestLemmings.Sort((l1, l2) => (int)(l1.distance - l2.distance));
+            return closestLemmings.Select(l => l.lemming).ToArray();
         }
 
         private void ApplyScrolling(GameTime gameTime, bool doubleSpeed, Point scaledMousePosition)
@@ -422,10 +496,10 @@ namespace Lemmings2024
                 if (doubleSpeed)
                     scrollSpeed *= 2f;
 
-                _scrollOffset += direction * scrollSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                ScrollOffset += direction * scrollSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
             }
 
-            _scrollOffset = MathHelper.Clamp(_scrollOffset, 0, PLAYGROUND_WIDTH - ScreenWidth);
+            ScrollOffset = MathHelper.Clamp(ScrollOffset, 0, PLAYGROUND_WIDTH - ScreenWidth);
         }
 
         private void GameDraw(SpriteBatch batch, GameTime gameTime)
@@ -440,101 +514,146 @@ namespace Lemmings2024
 
             GraphicsDevice.SetRenderTarget(_renderTarget);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_gameRender, new Rectangle(0, 0, 640, 160), new Rectangle((int)_scrollOffset, 0, 320, 160), Color.White);
+            _spriteBatch.Draw(_gameRender, new Rectangle(0, 0, 640, 160), new Rectangle((int)ScrollOffset, 0, 320, 160), Color.White);
             _spriteBatch.Draw(_hudTexture, new Vector2(0, 176), Color.White);
-            for (int i = 0; i< _availableActions.Length; i++)
+            Vector2 startPosition = new Vector2(6, 177);
+            for (int i = 0; i < _availableActions.Length; i++)
             {
-                Vector2 startPosition = new Vector2(73, 177);
                 if (_currentLevel.AvailableActions[i] > 0)
                 {
-                    int offset = i * 32;
-                    _digits.DrawFrame(_availableActions[i] / 10, _spriteBatch, startPosition + new Vector2(offset, 0), Point.Zero, 0, Vector2.One, Color.White);
-                    _digits.DrawFrame(_availableActions[i] % 10, _spriteBatch, startPosition + new Vector2(offset + 8, 0), Point.Zero, 0, Vector2.One, Color.White);
+                    int offset = (i + 2) * 32;
+                    DrawNumber(_availableActions[i], startPosition + new Vector2(offset, 0));
                 }
             }
+
+            DrawNumber(_currentLevel.LemmingRate, startPosition);
+            DrawNumber((int)_currentSpawnRate, startPosition + new Vector2(32, 0));
+
             _spriteBatch.Draw(_hudSelectTexture, new Vector2((_currentLemmingAction + 2) * 32, 176), Color.White);
             _spriteBatch.End();
 
+            DrawRadar();
+
+        }
+
+        private void DrawRadar()
+        {
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.Opaque);
+            _spriteBatch.Draw(_currentLevel.MaskTexture, _radarRect, Color.White);
+            foreach (Lemming lemming in _lemmings)
+            {
+                int x = (int)MathF.Floor(lemming.PixelPositionX / _radarRatio);
+                int y = (int)MathF.Floor(lemming.PixelPositionY / _radarRatio);
+                _spriteBatch.DrawRectangle(_radarRect.Location.ToVector2() + new Vector2(x, y), Vector2.Zero, Color.Yellow);
+            }
+            _spriteBatch.End();
+
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
+            _spriteBatch.Draw(_radarFrameTexture, _radarRect.Location.ToVector2() + new Vector2(ScrollOffset / _radarRatio - 2, -2), Color.White);
+            _spriteBatch.End();
+        }
+
+        private void DrawNumber(int number, Vector2 position)
+        {
+            _digits.DrawFrame(number / 10, _spriteBatch, position, Point.Zero, 0, Vector2.One, Color.White);
+            _digits.DrawFrame(number % 10, _spriteBatch, position + new Vector2(8, 0), Point.Zero, 0, Vector2.One, Color.White);
         }
         #endregion
 
         #region Actions
         public void ActionLemming(int index)
         {
+            if (IsPause)
+                return;
+
             _currentLemmingAction = index - 2;
         }
 
         public void ActionModifySpawn(int index)
         {
-            // TODO
+            if (IsPause)
+                return;
+
+            _currentSpawnRate = Math.Clamp(_currentSpawnRate + (index * 2 - 1) * DeltaTime * RATE_INCREASE_SPEED, _currentLevel.LemmingRate, 99);
         }
 
         public void ActionPause(int index)
         {
-            // TODO
+            _timeScale = 1 - _timeScale;
         }
 
         public void ActionArmageddon(int index)
         {
-            // TODO
+            if (IsPause)
+                return;
+
+            _isSpawning = false;
+            for (int i = 0; i < _lemmings.Count; i++)
+            {
+                _lemmings[i].Explode(i * 0.1f);
+            }
         }
 
-        public bool LemmingActionClimber(Lemming lemming)
+        public bool LemmingActionClimber(Lemming[] lemmings)
         {
             // TODO
             return true;
         }
 
-        public bool LemmingActionFloater(Lemming lemming)
-        {
-            // TODO
-            return true;
-
-        }
-
-        public bool LemmingActionBomb(Lemming lemming)
-        {
-                        lemming.Explode();
-            return true;
-
-        }
-
-        public bool LemmingActionBlocker(Lemming lemming)
+        public bool LemmingActionFloater(Lemming[] lemmings)
         {
             // TODO
             return true;
 
         }
 
-        public bool LemmingActionBridgeBuilder(Lemming lemming)
+        public bool LemmingActionBomb(Lemming[] lemmings)
+        {
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.Explode())
+                    return true;
+            }
+            return false;
+        }
+
+        public bool LemmingActionBlocker(Lemming[] lemmings)
         {
             // TODO
             return true;
 
         }
 
-        public bool LemmingActionBasher(Lemming lemming)
+        public bool LemmingActionBridgeBuilder(Lemming[] lemmings)
         {
             // TODO
             return true;
 
         }
 
-        public bool LemmingActionMiner(Lemming lemming)
+        public bool LemmingActionBasher(Lemming[] lemmings)
         {
             // TODO
             return true;
 
         }
 
-        public bool LemmingActionDigger(Lemming lemming)
+        public bool LemmingActionMiner(Lemming[] lemmings)
         {
-            if (lemming.IsDigging())
-                return false;
-
-            lemming.DigDown();
+            // TODO
             return true;
 
+        }
+
+        public bool LemmingActionDigger(Lemming[] lemmings)
+        {
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.DigDown())
+                    return true;
+            }
+
+            return false;
         }
         #endregion
     }

@@ -30,7 +30,7 @@ namespace Oudidon
 
         public static bool IsLeftMouseButtonDown()
         {
-            return _mouseState.RightButton == ButtonState.Pressed;
+            return _mouseState.LeftButton == ButtonState.Pressed;
         }
 
         public static bool LeftMouseButtonPressedThisFrame()

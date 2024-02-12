@@ -36,12 +36,15 @@ namespace Lemmings2024
         public const int WALL_HEIGHT = 5;
         public const int DEATH_HEIGHT = 60;
 
-        public const float BASE_SPEED = 15;
+        public const float BASE_SPEED = 50f / 3f;
+        public const float FALL_SPEED = 2f;
 
         private Color[] _currentLevelData;
         private SimpleStateMachine _simpleStateMachine;
 
         private Character _countDown;
+
+        public bool IsFalling => _simpleStateMachine.CurrentState == STATE_FALL;
 
         public Lemming(SpriteSheet spriteSheet, Game game) : base(spriteSheet, game)
         {
@@ -107,20 +110,32 @@ namespace Lemmings2024
             return y * Lemmings2024.PLAYGROUND_WIDTH + x;
         }
 
-        public void DigDown()
+        public bool IsDigging => _simpleStateMachine.CurrentState == STATE_DIG_DOWN;
+        public bool DigDown()
         {
+            if (IsDigging || IsFalling)
+                return false;
+
             SetState(STATE_DIG_DOWN);
+            return true;
         }
 
-        public bool IsDigging()
-        {
-            return _simpleStateMachine.CurrentState == STATE_DIG_DOWN;
-        }
 
-        public void Explode()
+        private bool _isExploding;
+        public bool IsExploding => _isExploding;
+        public bool Explode(float delay = 0f)
         {
-            _countDown.Activate();
-            _countDown.SetFrame(0);
+            if (_isExploding)
+                return false;
+
+            DelayAction(() =>
+            {
+                _isExploding = true;
+                _countDown.Activate();
+                _countDown.SetFrame(0);
+            }, delay);
+
+            return true;
         }
 
         public void Save()
@@ -238,7 +253,7 @@ namespace Lemmings2024
         private void FallEnter()
         {
             SetAnimation(ANIMATION_FALL);
-            SetSpeedMultiplier(2f);
+            SetSpeedMultiplier(FALL_SPEED);
             MoveDirection = new Vector2(0, 1);
             _fallStartHeight = PixelPositionY;
         }
@@ -296,7 +311,15 @@ namespace Lemmings2024
 
         private void ExplodeUpdate(GameTime gameTime, float stateTime)
         {
-            WalkUpdate(gameTime, stateTime);
+            Color groundColor;
+
+            int offsetX = PixelPositionX;
+            int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
+            groundColor = _currentLevelData[indexInLevelTexture];
+            if (!IsWalkable(groundColor))
+            {
+                MoveBy(new Vector2(0, FALL_SPEED * _baseSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds));
+            }
         }
 
         private Vector2 _scaleOnDigDown;
