@@ -1,0 +1,11 @@
+﻿_texture = level1
+_trapType = 0
+_exitType = 0
+_hatchPositions = 744,37
+_exitPosition = 890,133
+_lemmingsCount = 10
+_lemmingsRate = 50
+_duration = 300
+_winRate = 10
+_startScrollOffset = 640
+_availableActions = 0,0,10,0,0,0,0,10

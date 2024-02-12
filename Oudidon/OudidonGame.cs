@@ -24,6 +24,7 @@ namespace Oudidon
         public SpriteBatch SpriteBatch => _spriteBatch;
 
         protected RenderTarget2D _renderTarget;
+        protected Color _renderColor = Color.White;
 
         protected SimpleStateMachine _stateMachine;
 
@@ -119,7 +120,7 @@ namespace Oudidon
         {
             GraphicsDevice.SetRenderTarget(null);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
-            _spriteBatch.Draw(_renderTarget, new Rectangle((int)MathF.Floor(CameraShake.ShakeOffset.X * _screenScaleX), (int)MathF.Floor(CameraShake.ShakeOffset.Y * _screenScaleY), _screenWidth * _screenScaleX, _screenHeight * _screenScaleY), Color.White);
+            _spriteBatch.Draw(_renderTarget, new Rectangle((int)MathF.Floor(CameraShake.ShakeOffset.X * _screenScaleX), (int)MathF.Floor(CameraShake.ShakeOffset.Y * _screenScaleY), _screenWidth * _screenScaleX, _screenHeight * _screenScaleY), _renderColor);
             _spriteBatch.End();
             base.EndDraw();
         }

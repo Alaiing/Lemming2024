@@ -112,6 +112,11 @@ namespace Lemmings2024
             SetState(STATE_DIG_DOWN);
         }
 
+        public bool IsDigging()
+        {
+            return _simpleStateMachine.CurrentState == STATE_DIG_DOWN;
+        }
+
         public void Explode()
         {
             _countDown.Activate();

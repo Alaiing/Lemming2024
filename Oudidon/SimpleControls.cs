@@ -6,22 +6,51 @@ namespace Oudidon
     public class SimpleControls
     {
         private static KeyboardState _keyboardState;
+        private static MouseState _mouseState;
         private static GamePadState _gamePadStatePlayer1;
         private static GamePadState _gamePadStatePlayer2;
 
         private static KeyboardState _keyboardPreviousState;
+        private static MouseState _mousePreviousState;
         private static GamePadState _gamePadPreviousStatePlayer1;
         private static GamePadState _gamePadPreviousStatePlayer2;
 
         public static void GetStates()
         {
             _keyboardPreviousState = _keyboardState;
+            _mousePreviousState = _mouseState;
             _gamePadPreviousStatePlayer1 = _gamePadStatePlayer1;
             _gamePadPreviousStatePlayer2 = _gamePadStatePlayer2;
 
             _keyboardState = Keyboard.GetState();
+            _mouseState = Mouse.GetState();
             _gamePadStatePlayer1 = GamePad.GetState(PlayerIndex.One);
             _gamePadStatePlayer2 = GamePad.GetState(PlayerIndex.Two);
+        }
+
+        public static bool IsLeftMouseButtonDown()
+        {
+            return _mouseState.RightButton == ButtonState.Pressed;
+        }
+
+        public static bool LeftMouseButtonPressedThisFrame()
+        {
+            return _mouseState.LeftButton == ButtonState.Pressed && _mousePreviousState.LeftButton == ButtonState.Released;
+        }
+
+        public static bool IsRightMouseButtonDown() 
+        {
+            return _mouseState.RightButton == ButtonState.Pressed;
+        }
+
+        public static bool RightMouseButtonPressedThisFrame()
+        {
+            return _mouseState.RightButton == ButtonState.Pressed && _mousePreviousState.RightButton == ButtonState.Released;
+        }
+
+        public static Point GetMousePosition()
+        {
+            return _mouseState.Position;
         }
 
         private static bool IsKeyPressedThisFrame(Keys key)
