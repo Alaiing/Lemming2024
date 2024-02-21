@@ -110,6 +110,8 @@ namespace Lemmings2024
             };
 
             base.Initialize();
+
+            _timeScale = 1f;
         }
 
         protected override void InitStateMachine()
@@ -139,13 +141,21 @@ namespace Lemmings2024
             _radarRatio = (float)PLAYGROUND_WIDTH / _radarRect.Width;
 
 
-            _lemmingSprite = new SpriteSheet(Content, "lemming", 20, 20, new Point(9, 10));
+            _lemmingSprite = new SpriteSheet(Content, "lemming", 20, 20, new Point(8, 10));
+            _lemmingSprite.AddLayer(Content, "lemming-dirt");
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_WALK, 0, 7, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_FALL, 32, 35, Lemming.BASE_SPEED, new Point(8, 11));
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_DIE_FALL, 176, 191, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_OHNO, 160, 175, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_EXPLODE, 221, 221, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_DIG_DOWN, 128, 135, Lemming.BASE_SPEED, new Point(9, 11));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_STOP, 48, 63, Lemming.BASE_SPEED, new Point(9, 11));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_CLIMB, 64, 71, Lemming.BASE_SPEED, new Point(8, 12));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_END_CLIMB, 72, 79, Lemming.BASE_SPEED, new Point(8, 11));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_FLOATER_OPEN, 36, 39, Lemming.BASE_SPEED, new Point(8, 17));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_FLOATER, 40, 43, Lemming.BASE_SPEED, new Point(8, 17), SpriteSheet.AnimationType.PingPong);
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_BUILDER, 80, 95, Lemming.BASE_SPEED, new Point(8, 13));
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_SHRUG, 9, 15, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_SAVED, 19, 25, Lemming.BASE_SPEED);
 
             SpriteSheet hatch = new SpriteSheet(Content, "hatch", 41, 25, new Point(20, 0));
@@ -234,7 +244,7 @@ namespace Lemmings2024
 
         private void OnLemmingDigLine(Lemming lemming)
         {
-            _currentLevel.Dig(new Point(lemming.PixelPositionX - LINE_DIG_LENGTH / 2 - 1, lemming.PixelPositionY), LINE_DIG_LENGTH);
+            _currentLevel.Dig(new Point(lemming.PixelPositionX - LINE_DIG_LENGTH / 2, lemming.PixelPositionY), LINE_DIG_LENGTH);
         }
 
         private void OpenHatch(int index)
@@ -343,6 +353,21 @@ namespace Lemmings2024
 
             SpawnLemmings(gameTime);
 
+            TestBlockers();
+
+            SaveLemmings();
+        }
+
+        private void TestBlockers()
+        {
+            foreach (Lemming lemming in _lemmings)
+            {
+                lemming.TestBlocker();
+            }
+        }
+
+        private void SaveLemmings()
+        {
             foreach (Lemming lemming in _lemmings)
             {
                 if (Vector2.Distance(lemming.Position, _exit.Position) < 3)
@@ -359,7 +384,7 @@ namespace Lemmings2024
 
             newLemming.MoveTo(_hatches[hatchIndex].Position + new Vector2(0, _lemmingSprite.TopMargin + 3));
             newLemming.SetScale(new Vector2(direction, 1));
-            newLemming.SetCurrentLevel(_currentLevel.MaskTextureData);
+            newLemming.SetCurrentLevel(_currentLevel);
             Components.Add(newLemming);
             _lemmings.Add(newLemming);
         }
@@ -393,6 +418,9 @@ namespace Lemmings2024
             if (scaledMousePosition.X < 192)
             {
                 int actionIndex = scaledMousePosition.X / 16;
+                if (actionIndex < 0 || actionIndex >= _hudActions.Length)
+                    return;
+
                 (Action<int> action, ClickType clickType) hoveredAction = _hudActions[actionIndex];
                 if (GetClickPerformed(hoveredAction.clickType))
                 {
@@ -405,9 +433,7 @@ namespace Lemmings2024
                 if (SimpleControls.IsLeftMouseButtonDown())
                 {
                     float radarPositionX = scaledMousePosition.X - _radarRect.X / 2;
-                    Debug.WriteLine($"Radar position: {radarPositionX}");
                     float playgroundPositionX = radarPositionX * _radarRatio;
-                    Debug.WriteLine($"World position: {playgroundPositionX}");
                     ScrollOffset = playgroundPositionX * 2 - ScreenWidth / 4;
                 }
             }
@@ -446,7 +472,7 @@ namespace Lemmings2024
 
             Point scrolledMousePosition = new Point(scaledMousePosition.X + (int)ScrollOffset, scaledMousePosition.Y);
 
-            Lemming[] hoveredLemmings = GetLemmingUnderMouse(scrolledMousePosition);
+            Lemming[] hoveredLemmings = GetLemmingsUnderMouse(scrolledMousePosition);
 
             if (hoveredLemmings != null && hoveredLemmings.Length > 0)
             {
@@ -467,7 +493,7 @@ namespace Lemmings2024
             }
         }
 
-        private Lemming[] GetLemmingUnderMouse(Point scrolledMousePosition)
+        private Lemming[] GetLemmingsUnderMouse(Point scrolledMousePosition)
         {
             List<(Lemming lemming, float distance)> closestLemmings = new();
             foreach (Lemming lemming in _lemmings)
@@ -596,15 +622,22 @@ namespace Lemmings2024
 
         public bool LemmingActionClimber(Lemming[] lemmings)
         {
-            // TODO
-            return true;
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.Climb())
+                    return true;
+            }
+            return false;
         }
 
         public bool LemmingActionFloater(Lemming[] lemmings)
         {
-            // TODO
-            return true;
-
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.Float())
+                    return true;
+            }
+            return false;
         }
 
         public bool LemmingActionBomb(Lemming[] lemmings)
@@ -619,16 +652,23 @@ namespace Lemmings2024
 
         public bool LemmingActionBlocker(Lemming[] lemmings)
         {
-            // TODO
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.Stop())
+                    return true;
+            }
             return true;
 
         }
 
         public bool LemmingActionBridgeBuilder(Lemming[] lemmings)
         {
-            // TODO
-            return true;
-
+            foreach (var lemming in lemmings)
+            {
+                if (lemming.Build())
+                    return true;
+            }
+            return false;
         }
 
         public bool LemmingActionBasher(Lemming[] lemmings)

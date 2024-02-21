@@ -19,7 +19,7 @@ namespace Lemmings2024
         private Texture2D _texture;
         public Texture2D Texture => _texture;
         private Color[] _textureData;
- 
+
         private Texture2D _maskTexture;
         public Texture2D MaskTexture => _maskTexture;
         private Color[] _maskTextureData;
@@ -48,6 +48,8 @@ namespace Lemmings2024
 
         private int[] _availableActions = new int[8];
         public int[] AvailableActions => _availableActions;
+        private Color _dirtColor;
+        public Color DirtColor => _dirtColor;
 
         private ContentManager _content;
         private string _textureName;
@@ -118,13 +120,17 @@ namespace Lemmings2024
                             string[] actions = dataValue.Split(',');
                             _availableActions = actions.Select(action => int.Parse(action)).ToArray();
                             break;
+                        case nameof(_dirtColor):
+                            string[] color = dataValue.Split(',');
+                            _dirtColor = new Color(int.Parse(color[0].Trim()), int.Parse(color[1].Trim()), int.Parse(color[2].Trim()), 255);
+                            break;
                     }
                 }
 
                 ReloadTexture();
             }
             catch (Exception e)
-            { 
+            {
                 Debug.WriteLine(e);
             }
         }
@@ -160,6 +166,31 @@ namespace Lemmings2024
                 _maskTextureData[startIndex + i] = Color.Transparent;
             }
             UpdateTexture();
+        }
+
+        public void Build(Point position, int length)
+        {
+            if (position.Y >= _texture.Height)
+                return;
+
+            int endPosition = Math.Min(_texture.Width, position.X + length);
+            length = endPosition - position.X;
+            int startIndex = position.Y * _texture.Width + position.X;
+            for (int i = 0; i < length; i++)
+            {
+                _textureData[startIndex + i] = _dirtColor;
+                _maskTextureData[startIndex + i] = new Color(0, 136, 0, 255);
+            }
+            UpdateTexture();
+        }
+
+        public Color GetMaskPixel(Point position)
+        {
+            if (position.X < 0 || position.Y < 0 || position.X >= Texture.Width || position.Y >= Texture.Height)
+                return Color.Black;
+
+            int startIndex = position.Y * _texture.Width + position.X;
+            return _maskTextureData[startIndex];
         }
 
         private void UpdateTexture()

@@ -31,6 +31,7 @@ namespace Oudidon
         protected float _speedMultiplier;
         public float CurrentSpeed => _baseSpeed * _speedMultiplier;
         protected float _animationSpeedMultiplier;
+        private float _animationDirection;
         private string _currentAnimationName;
         private SpriteSheet.Animation _currentAnimation;
 
@@ -153,6 +154,7 @@ namespace Oudidon
                     _onAnimationEnd = null;
                     _onAnimationFrame = null;
                 }
+                _animationDirection = 1;
             }
         }
 
@@ -198,10 +200,24 @@ namespace Oudidon
                 return;
 
             int previousFrame = (int)MathF.Floor(_currentFrame);
-            _currentFrame += deltaTime * _currentAnimation.speed * _animationSpeedMultiplier;
-            if (_currentFrame > _currentAnimation.FrameCount)
+            _currentFrame += deltaTime * _currentAnimation.speed * _animationSpeedMultiplier * _animationDirection;
+            if (_animationDirection > 0 && _currentFrame > _currentAnimation.FrameCount
+                || _animationDirection < 0 && _currentFrame < 0)
             {
-                _currentFrame = 0;
+                switch(_currentAnimation.type)
+                {
+                    case SpriteSheet.AnimationType.Loop:
+                        _currentFrame = 0;
+                        break;
+                    case SpriteSheet.AnimationType.Once:
+                        _currentFrame = _currentAnimation.FrameCount - 1;
+                        break;
+                    case SpriteSheet.AnimationType.PingPong:
+                        _currentFrame = Math.Clamp(_currentFrame, 0, _currentAnimation.FrameCount - 1);
+                        _animationDirection = -_animationDirection;
+                        break;
+                }
+
                 if (_onAnimationEnd != null)
                 {
                     _onAnimationEnd?.Invoke();

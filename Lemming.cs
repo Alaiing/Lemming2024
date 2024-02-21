@@ -23,6 +23,13 @@ namespace Lemmings2024
         public const string STATE_DIE_FALL = "DieFall";
         public const string STATE_EXPLODE = "Explode";
         public const string STATE_DIG_DOWN = "DigDown";
+        public const string STATE_STOP = "Stop";
+        public const string STATE_CLIMB = "Climb";
+        public const string STATE_END_CLIMB = "EndClimb";
+        public const string STATE_FLOATER_OPEN = "FloaterOpen";
+        public const string STATE_FLOATER = "Floater";
+        public const string STATE_BUILDER = "Builder";
+        public const string STATE_SHRUG = "Shrug";
         public const string STATE_SAVED = "Saved";
 
         public const string ANIMATION_WALK = "Walk";
@@ -31,20 +38,36 @@ namespace Lemmings2024
         public const string ANIMATION_OHNO = "Ohno";
         public const string ANIMATION_EXPLODE = "Explode";
         public const string ANIMATION_DIG_DOWN = "DigDown";
+        public const string ANIMATION_STOP = "Stop";
+        public const string ANIMATION_CLIMB = "Climb";
+        public const string ANIMATION_END_CLIMB = "EndClimb";
+        public const string ANIMATION_FLOATER_OPEN = "FloaterOpen";
+        public const string ANIMATION_FLOATER = "Floater";
+        public const string ANIMATION_BUILDER = "Builder";
+        public const string ANIMATION_SHRUG = "Shrug";
         public const string ANIMATION_SAVED = "Saved";
 
         public const int WALL_HEIGHT = 5;
         public const int DEATH_HEIGHT = 60;
+        public const int FLOATER_HEIGHT = 20;
+        public const int BLOCKER_DISTANCE = 6;
+        public const int CLIMBER_TEST = 7;
+        public const int BUILD_WIDTH = 6;
 
         public const float BASE_SPEED = 50f / 3f;
         public const float FALL_SPEED = 2f;
 
-        private Color[] _currentLevelData;
+        private Level _currentLevel;
         private SimpleStateMachine _simpleStateMachine;
 
         private Character _countDown;
 
         public bool IsFalling => _simpleStateMachine.CurrentState == STATE_FALL;
+        public bool IsBlocker => _simpleStateMachine.CurrentState == STATE_STOP;
+        public bool IsBuilder => _simpleStateMachine.CurrentState == STATE_BUILDER;
+
+        public bool IsClimber { get; set; }
+        public bool IsFloater { get; set; }
 
         public Lemming(SpriteSheet spriteSheet, Game game) : base(spriteSheet, game)
         {
@@ -68,6 +91,13 @@ namespace Lemmings2024
             _simpleStateMachine.AddState(STATE_DIE_FALL, OnEnter: DieFallEnter);
             _simpleStateMachine.AddState(STATE_EXPLODE, OnEnter: ExplodeEnter, OnUpdate: ExplodeUpdate);
             _simpleStateMachine.AddState(STATE_DIG_DOWN, OnEnter: DigDownEnter, OnExit: DigDownExit);
+            _simpleStateMachine.AddState(STATE_STOP, OnEnter: StopEnter, OnUpdate: StopUpdate, OnExit: StopExit);
+            _simpleStateMachine.AddState(STATE_CLIMB, OnEnter: ClimbEnter, OnUpdate: ClimbUpdate);
+            _simpleStateMachine.AddState(STATE_END_CLIMB, OnEnter: EndClimbEnter);
+            _simpleStateMachine.AddState(STATE_FLOATER_OPEN, OnEnter: FloaterOpenEnter);
+            _simpleStateMachine.AddState(STATE_FLOATER, OnEnter: FloaterEnter, OnUpdate: FloaterUpdate);
+            _simpleStateMachine.AddState(STATE_BUILDER, OnEnter: BuilderEnter, OnUpdate: BuilderUpdate);
+            _simpleStateMachine.AddState(STATE_SHRUG, OnEnter: ShrugEnter);
             _simpleStateMachine.AddState(STATE_SAVED, OnEnter: SavedEnter);
 
             _simpleStateMachine.SetState(STATE_WALK);
@@ -89,9 +119,10 @@ namespace Lemmings2024
             MoveDirection = new Vector2(direction, 0);
         }
 
-        public void SetCurrentLevel(Color[] currentLevelData)
+        public void SetCurrentLevel(Level currentLevel)
         {
-            _currentLevelData = currentLevelData;
+            _currentLevel = currentLevel;
+            SetLayerColor(_currentLevel.DirtColor, 1);
         }
 
         public override void Update(GameTime gameTime)
@@ -113,13 +144,49 @@ namespace Lemmings2024
         public bool IsDigging => _simpleStateMachine.CurrentState == STATE_DIG_DOWN;
         public bool DigDown()
         {
-            if (IsDigging || IsFalling)
+            if (IsDigging || IsFalling || IsBlocker)
                 return false;
 
             SetState(STATE_DIG_DOWN);
             return true;
         }
 
+        public bool Stop()
+        {
+            if (IsFalling || IsBlocker)
+                return false;
+
+            SetState(STATE_STOP);
+
+            return true;
+        }
+
+        public bool Climb()
+        {
+            if (IsBlocker || IsClimber)
+                return false;
+            IsClimber = true;
+
+            return true;
+        }
+
+        public bool Float()
+        {
+            if (IsBlocker || IsFloater)
+                return false;
+            IsFloater = true;
+
+            return true;
+        }
+
+        public bool Build()
+        {
+            if (IsBlocker || IsFalling || IsBuilder) 
+                return false;
+
+            SetState(STATE_BUILDER);
+            return true;
+        }
 
         private bool _isExploding;
         public bool IsExploding => _isExploding;
@@ -179,7 +246,7 @@ namespace Lemmings2024
 
             int offsetX = PixelPositionX;
             int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
-            groundColor = _currentLevelData[indexInLevelTexture];
+            groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (IsWalkable(groundColor))
             {
                 int positionChange = FindUpwardPosition(offsetX, PixelPositionY);
@@ -189,7 +256,14 @@ namespace Lemmings2024
                 }
                 else
                 {
-                    TurnAround();
+                    if (IsClimber && CanClimb())
+                    {
+                        SetState(STATE_CLIMB);
+                    }
+                    else
+                    {
+                        TurnAround();
+                    }
                 }
             }
             else
@@ -216,14 +290,14 @@ namespace Lemmings2024
         public override void Draw(GameTime gameTime)
         {
             base.Draw(gameTime);
-            //SpriteBatch.DrawRectangle(Position, Vector2.Zero, Color.Red);
+            DebugDraw();
         }
 
         private int FindUpwardPosition(int x, int y)
         {
             int indexAtPosition = IndexInLevelData(x, y - 1);
             int delta = 0;
-            while (indexAtPosition >= 0 && IsWalkable(_currentLevelData[indexAtPosition]) && delta <= WALL_HEIGHT + 1)
+            while (indexAtPosition >= 0 && IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]) && delta <= WALL_HEIGHT + 1)
             {
                 delta++;
                 indexAtPosition -= Lemmings2024.PLAYGROUND_WIDTH;
@@ -236,18 +310,38 @@ namespace Lemmings2024
         {
             int indexAtPosition = IndexInLevelData(x, y);
             int delta = 0;
-            while (indexAtPosition < _currentLevelData.Length && !IsWalkable(_currentLevelData[indexAtPosition]) && delta <= WALL_HEIGHT)
+            while (indexAtPosition < _currentLevel.MaskTextureData.Length && !IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]) && delta <= WALL_HEIGHT)
             {
                 delta++;
                 indexAtPosition += Lemmings2024.PLAYGROUND_WIDTH;
             }
-            if (indexAtPosition > _currentLevelData.Length)
+            if (indexAtPosition > _currentLevel.MaskTextureData.Length)
             {
                 return WALL_HEIGHT + 1;
             }
             return delta;
         }
 
+
+        public static List<Lemming> blockers = new List<Lemming>();
+        public bool TestBlocker()
+        {
+            foreach (Lemming blocker in blockers)
+            {
+                if (Math.Abs(blocker.PixelPositionY - PixelPositionY) > 10)
+                {
+                    continue;
+                }
+
+                int deltaX = blocker.PixelPositionX - PixelPositionX;
+                if (Math.Abs(deltaX) < BLOCKER_DISTANCE && Math.Sign(deltaX) == Math.Sign(MoveDirection.X))
+                {
+                    TurnAround();
+                }
+            }
+
+            return false;
+        }
 
         private int _fallStartHeight;
         private void FallEnter()
@@ -272,11 +366,19 @@ namespace Lemmings2024
                 return;
             }
 
-            if (indexInLevelTexture >= _currentLevelData.Length)
+            if (indexInLevelTexture >= _currentLevel.MaskTextureData.Length)
             {
                 return;
             }
-            Color groundColor = _currentLevelData[indexInLevelTexture];
+
+            if (PixelPositionY - _fallStartHeight >= FLOATER_HEIGHT && IsFloater && _simpleStateMachine.CurrentState != STATE_FLOATER)
+            {
+                SetState(STATE_FLOATER_OPEN); 
+                return;
+            }
+
+
+            Color groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (groundColor.A > 0)
             {
                 if (PixelPositionY - _fallStartHeight < DEATH_HEIGHT)
@@ -315,7 +417,7 @@ namespace Lemmings2024
 
             int offsetX = PixelPositionX;
             int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
-            groundColor = _currentLevelData[indexInLevelTexture];
+            groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (!IsWalkable(groundColor))
             {
                 MoveBy(new Vector2(0, FALL_SPEED * _baseSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds));
@@ -351,7 +453,7 @@ namespace Lemmings2024
                 int startIndex = (PixelPositionY + 1) * Lemmings2024.PLAYGROUND_WIDTH + PixelPositionX;
                 for (int i = 0; i < length; i++)
                 {
-                    if (_currentLevelData[startIndex + i].A > 0)
+                    if (_currentLevel.MaskTextureData[startIndex + i].A > 0)
                     {
                         canDig = true;
                         break;
@@ -368,7 +470,7 @@ namespace Lemmings2024
                 SetScale(new Vector2(-CurrentScale.X, CurrentScale.Y));
                 if (CurrentScale.X < 0)
                 {
-                    SetPivotOffset(new Point(-3, 0));
+                    SetPivotOffset(new Point(1, 0));
                 }
                 else
                 {
@@ -382,11 +484,190 @@ namespace Lemmings2024
             SetScale(_scaleOnDigDown);
         }
 
+        private void StopEnter()
+        {
+            SetAnimation(ANIMATION_STOP);
+            SetSpeedMultiplier(0f);
+            blockers.Add(this);
+        }
+
+        private void StopExit()
+        {
+            blockers.Remove(this);
+        }
+
+        private void StopUpdate(GameTime gameTime, float stateTime)
+        {
+            int indexAtPosition = IndexInLevelData(PixelPositionX, PixelPositionY + 1);
+            // TODO: test more pixels
+            if (indexAtPosition < _currentLevel.MaskTextureData.Length && !IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]))
+            {
+                SetState(STATE_WALK);
+            }
+
+        }
+
+        private void ClimbEnter()
+        {
+            SetAnimation(ANIMATION_CLIMB, onAnimationFrame: OnClimbFrame);
+            SetSpeedMultiplier(0f);
+        }
+
+        private void OnClimbFrame(int frameIndex)
+        {
+            if (frameIndex >= 4)
+            {
+                MoveBy(new Vector2(0, -1));
+            }
+        }
+
+        private void ClimbUpdate(GameTime gameTime, float stateTime)
+        {
+            if (!CanClimb())
+            {
+                TurnAround();
+                SetState(STATE_FALL);
+                return;
+            }
+
+            int offset = _currentScale.X > 0 ? 0 : SpriteSheet.FrameWidth - SpriteSheet.DefaultPivot.X * 2 - 1;
+            //for (int i = 1; i < 5; i++)
+            //{
+            //    if (IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX + offset - i * (int)_currentScale.X, PixelPositionY - 10))))
+            //    {
+            //        TurnAround();
+            //        SetState(STATE_FALL);
+            //        return;
+            //    }
+            //}
+            if (!IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX + offset, PixelPositionY - CLIMBER_TEST))))
+            {
+                SetState(STATE_END_CLIMB);
+            }
+        }
+
+        private bool CanClimb()
+        {
+            //int offset = _currentScale.X > 0 ? 0 : SpriteSheet.FrameWidth - SpriteSheet.DefaultPivot.X * 2 - 1;
+            for (int i = 1; i < 5; i++)
+            {
+                if (IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX - i * (int)_currentScale.X, PixelPositionY - 10))))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void EndClimbEnter()
+        {
+            SetAnimation(ANIMATION_END_CLIMB,
+                onAnimationFrame: (index) =>
+                {
+                    if (index > 0 && index < 4)
+                        MoveBy(new Vector2(0, -2));
+                },
+                onAnimationEnd: () =>
+                {
+                    SetState(STATE_WALK);
+                }); ;
+            SetSpeedMultiplier(0f);
+        }
+
         private void SavedEnter()
         {
             SetSpeedMultiplier(0f);
             SetAnimation(ANIMATION_SAVED, onAnimationEnd: () => EventsManager.FireEvent(EVENT_SAVED, this));
         }
+
+        private void FloaterEnter()
+        {
+            SetAnimation(ANIMATION_FLOATER);
+            SetSpeedMultiplier(FALL_SPEED);
+        }
+
+        private void FloaterUpdate(GameTime time, float arg2)
+        {
+            Fall(onLand: () => SetState(STATE_WALK), onLandDie: () => SetState(STATE_WALK));
+        }
+
+        private void FloaterOpenEnter()
+        {
+            SetSpeedMultiplier(0);
+            SetAnimation(ANIMATION_FLOATER_OPEN, onAnimationEnd: () => SetState(STATE_FLOATER));
+        }
+
+        private int _buildCount;
+
+        private void BuilderEnter()
+        {
+            _buildCount = 0;
+            SetAnimation(ANIMATION_BUILDER, onAnimationFrame: OnBuildFrame, onAnimationEnd: OnBuildEnd);
+            SetSpeedMultiplier(0);
+        }
+
+        private void OnBuildEnd()
+        {
+            _buildCount++;
+            MoveBy(new Vector2(CurrentScale.X * 2, -1));
+            if (_buildCount > 9)
+            {
+                // TODO: play sound
+            }
+            if(_buildCount >= 12)
+            {
+                SetState(STATE_SHRUG);
+            }
+        }
+
+        private void OnBuildFrame(int frameIndex)
+        {
+            if (frameIndex == 9)
+            {
+                _currentLevel.Build(new Point(PixelPositionX + (CurrentScale.X < 0 ? -BUILD_WIDTH : 0), PixelPositionY - 1), BUILD_WIDTH);
+            }
+        }
+
+        private void BuilderUpdate(GameTime gameTime, float stateTime)
+        {
+            Color groundColor;
+
+            int offsetX = PixelPositionX + BUILD_WIDTH / 2;
+            int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
+            groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
+            if (IsWalkable(groundColor))
+            {
+                int positionChange = FindUpwardPosition(offsetX, PixelPositionY);
+                if (positionChange > WALL_HEIGHT)
+                {
+
+                    SetState(STATE_SHRUG);
+                    TurnAround();
+                    return;
+                }
+            }
+            if (!CanClimb())
+            {
+                SetState(STATE_SHRUG);
+                TurnAround();
+            }
+        }
+
+        private void ShrugEnter()
+        {
+            SetSpeedMultiplier(0f);
+            SetAnimation(ANIMATION_SHRUG, onAnimationEnd: () => SetState(STATE_WALK));
+        }
+
         #endregion
+
+        private void DebugDraw()
+        {
+            //int offset = _currentScale.X > 0 ? 0 : SpriteSheet.FrameWidth - SpriteSheet.DefaultPivot.X * 2 - 1;
+            //SpriteBatch.DrawRectangle(new Vector2(PixelPositionX + offset, PixelPositionY - 7), Vector2.Zero, Color.Red);
+
+            //SpriteBatch.DrawRectangle(new Vector2(PixelPositionX - (int)_currentScale.X, PixelPositionY - 10), new Vector2((int)_currentScale.X * 5, 0), Color.Yellow);
+        }
     }
 }

@@ -9,11 +9,14 @@ namespace Oudidon
 {
     public class SpriteSheet
     {
+        public enum AnimationType { Once, Loop, PingPong }
+
         public struct Animation
         {
             public int startingFrame;
             public int endFrame;
             public float speed;
+            public AnimationType type;
             public Point origin;
             public readonly int FrameCount => Math.Abs(endFrame - startingFrame) + 1;
             public readonly int AnimationDirection => Math.Sign(endFrame - startingFrame);
@@ -80,14 +83,21 @@ namespace Oudidon
             _layers[layerIndex] = texture;
         }
 
-        public void RegisterAnimation(string name, int startingFrame, int endingFrame, float animationSpeed, Point origin)
+        public void RegisterAnimation(string name, int startingFrame, int endingFrame, float animationSpeed, Point origin, AnimationType animationType = AnimationType.Loop)
         {
-            _animations.Add(name, new Animation { startingFrame = startingFrame, endFrame = endingFrame, speed = animationSpeed, origin = origin });
+            _animations.Add(name, new Animation 
+            { 
+                startingFrame = startingFrame, 
+                endFrame = endingFrame, 
+                speed = animationSpeed, 
+                type = animationType,
+                origin = origin 
+            });
         }
 
-        public void RegisterAnimation(string name, int startingFrame, int endingFrame, float animationSpeed)
+        public void RegisterAnimation(string name, int startingFrame, int endingFrame, float animationSpeed, AnimationType animationType = AnimationType.Loop)
         {
-            RegisterAnimation(name, startingFrame, endingFrame, animationSpeed, _defaultOrigin);
+            RegisterAnimation(name, startingFrame, endingFrame, animationSpeed, _defaultOrigin, animationType);
         }
 
         public bool HasAnimation(string name)
@@ -218,11 +228,13 @@ namespace Oudidon
                 {
                     spriteEffects |= SpriteEffects.FlipHorizontally;
                     scale.X = -scale.X;
+                    origin.X = FrameWidth - origin.X;
                 }
                 if (scale.Y < 0)
                 {
                     spriteEffects |= SpriteEffects.FlipVertically;
                     scale.Y = -scale.Y;
+                    origin.Y = FrameHeight - origin.Y;
                 }
                 for (int i = 0; i < _layers.Count; i++)
                 {
