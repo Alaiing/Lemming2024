@@ -135,17 +135,21 @@ namespace Lemmings2024
             }
         }
 
-        public void Dig(Texture2D digTexture, Color[] digTextureData, Point position)
+        public void Dig(Texture2D digTexture, Color[] digTextureData, Point position, bool flipHorizontal = false)
         {
             int startIndex = position.Y * _texture.Width + position.X;
             for (int i = 0; i < digTextureData.Length; i++)
             {
-                int textureRelativeIndex = i % digTexture.Width + (i / digTexture.Width) * _texture.Width;
+                int x = i % digTexture.Width;
+                if (flipHorizontal)
+                    x = - x;
+                int textureRelativeIndex = x + (i / digTexture.Width) * _texture.Width;
                 if (digTextureData[i].A > 0)
                 {
                     if (startIndex + textureRelativeIndex < _textureData.Length)
                     {
                         _textureData[startIndex + textureRelativeIndex] = Color.Transparent;
+                        _maskTextureData[startIndex + textureRelativeIndex] = Color.Transparent;
                     }
                 }
             }
