@@ -76,8 +76,9 @@ namespace Oudidon
             DeltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             gameTime.ElapsedGameTime *= _timeScale;
             GameTime = gameTime;
-            CameraShake.Update((float)GameTime.ElapsedGameTime.TotalSeconds);
-            CameraFade.Update((float)GameTime.ElapsedGameTime.TotalSeconds);
+            CameraShake.Update(DeltaTime);
+            CameraFade.Update(DeltaTime);
+            Particles.Update(DeltaTime);
             UpdateStateMachine(GameTime);
             UpdateComponents(GameTime);
         }
@@ -107,7 +108,11 @@ namespace Oudidon
         protected virtual void DrawGameplay(GameTime gameTime)
         {
             DrawStateMachine(gameTime);
-            //DrawComponents(gameTime);
+        }
+
+        protected void DrawParticles()
+        {
+            Particles.Draw(SpriteBatch);
         }
 
         protected void DrawStateMachine(GameTime gameTime)

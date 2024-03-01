@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Oudidon;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,7 @@ namespace Lemmings2024
         public const string EVENT_EXPLODE = "LemmingExplode";
         public const string EVENT_START_DIG_LINE = "LemmingStartDigLine";
         public const string EVENT_DIG_LINE = "LemmingDigLine";
+        public const string EVENT_DIG_CHUNK = "LemmingDigChunk";
         public const string EVENT_SAVED = "LemmingSaved";
 
         public const string STATE_WALK = "Walk";
@@ -29,6 +31,7 @@ namespace Lemmings2024
         public const string STATE_FLOATER_OPEN = "FloaterOpen";
         public const string STATE_FLOATER = "Floater";
         public const string STATE_BUILDER = "Builder";
+        public const string STATE_BASHER = "Basher";
         public const string STATE_SHRUG = "Shrug";
         public const string STATE_SAVED = "Saved";
 
@@ -44,6 +47,7 @@ namespace Lemmings2024
         public const string ANIMATION_FLOATER_OPEN = "FloaterOpen";
         public const string ANIMATION_FLOATER = "Floater";
         public const string ANIMATION_BUILDER = "Builder";
+        public const string ANIMATION_BASHER = "Basher";
         public const string ANIMATION_SHRUG = "Shrug";
         public const string ANIMATION_SAVED = "Saved";
 
@@ -65,9 +69,17 @@ namespace Lemmings2024
         public bool IsFalling => _simpleStateMachine.CurrentState == STATE_FALL;
         public bool IsBlocker => _simpleStateMachine.CurrentState == STATE_STOP;
         public bool IsBuilder => _simpleStateMachine.CurrentState == STATE_BUILDER;
+        public bool IsBasher => _simpleStateMachine.CurrentState == STATE_BASHER;
+        public bool IsSaved => _simpleStateMachine.CurrentState == STATE_SAVED;
 
         public bool IsClimber { get; set; }
         public bool IsFloater { get; set; }
+
+        private SoundEffect _popSound;
+        private SoundEffectInstance _popSoundInstance;
+
+        private SoundEffect _splotchSound;
+        private SoundEffectInstance _splotchSoundInstance;
 
         public Lemming(SpriteSheet spriteSheet, Game game) : base(spriteSheet, game)
         {
@@ -81,6 +93,12 @@ namespace Lemmings2024
             _countDown.SetAnimation("Countdown", onAnimationEnd: OnCountDownDone);
             _countDown.Deactivate();
             game.Components.Add(_countDown);
+
+            _popSound = game.Content.Load<SoundEffect>("pop");
+            _popSoundInstance = _popSound.CreateInstance();
+
+            _splotchSound = game.Content.Load<SoundEffect>("zboui");
+            _splotchSoundInstance = _splotchSound.CreateInstance();
         }
 
         public void InitStateMachine()
@@ -97,6 +115,7 @@ namespace Lemmings2024
             _simpleStateMachine.AddState(STATE_FLOATER_OPEN, OnEnter: FloaterOpenEnter);
             _simpleStateMachine.AddState(STATE_FLOATER, OnEnter: FloaterEnter, OnUpdate: FloaterUpdate);
             _simpleStateMachine.AddState(STATE_BUILDER, OnEnter: BuilderEnter, OnUpdate: BuilderUpdate);
+            _simpleStateMachine.AddState(STATE_BASHER, OnEnter: BasherEnter, OnUpdate: BasherUpdate);
             _simpleStateMachine.AddState(STATE_SHRUG, OnEnter: ShrugEnter);
             _simpleStateMachine.AddState(STATE_SAVED, OnEnter: SavedEnter);
 
@@ -181,10 +200,19 @@ namespace Lemmings2024
 
         public bool Build()
         {
-            if (IsBlocker || IsFalling || IsBuilder) 
+            if (IsBlocker || IsFalling || IsBuilder)
                 return false;
 
             SetState(STATE_BUILDER);
+            return true;
+        }
+
+        public bool Bash()
+        {
+            if (IsBlocker || IsFalling || IsBasher)
+                return false;
+
+            SetState(STATE_BASHER);
             return true;
         }
 
@@ -223,8 +251,19 @@ namespace Lemmings2024
 
         public void Destroy()
         {
+            ExplosionParticles(Position);
             EventsManager.FireEvent(EVENT_EXPLODE, this);
             Kill();
+        }
+
+        public static void ExplosionParticles(Vector2 position)
+        {
+            for (int i = 0; i < 20; i++)
+            {
+                Vector2 velocity = new Vector2((CommonRandom.Random.NextSingle() * 2 - 1) / 2f, -CommonRandom.Random.NextSingle() * 1.5f);
+                Color color = new Color(CommonRandom.Random.Next(0, 256), CommonRandom.Random.Next(0, 256), CommonRandom.Random.Next(0, 256), 255);
+                Particles.SpawnParticle(color, position, velocity * 20, 2f, useGravity: true, timeScale: 5f);
+            }
         }
 
         private bool IsWalkable(Color color)
@@ -373,7 +412,7 @@ namespace Lemmings2024
 
             if (PixelPositionY - _fallStartHeight >= FLOATER_HEIGHT && IsFloater && _simpleStateMachine.CurrentState != STATE_FLOATER)
             {
-                SetState(STATE_FLOATER_OPEN); 
+                SetState(STATE_FLOATER_OPEN);
                 return;
             }
 
@@ -396,6 +435,7 @@ namespace Lemmings2024
         {
             SetSpeedMultiplier(0);
             SetAnimation(ANIMATION_DIE_FALL, onAnimationEnd: Kill);
+            _splotchSoundInstance.Play();
         }
 
         private void ExplodeEnter()
@@ -408,6 +448,7 @@ namespace Lemmings2024
                 {
                     DrawOrder = 99;
                     SetAnimation(ANIMATION_EXPLODE, onAnimationEnd: Destroy);
+                    _popSoundInstance.Play();
                 });
         }
 
@@ -615,7 +656,7 @@ namespace Lemmings2024
             {
                 // TODO: play sound
             }
-            if(_buildCount >= 12)
+            if (_buildCount >= 12)
             {
                 SetState(STATE_SHRUG);
             }
@@ -652,6 +693,30 @@ namespace Lemmings2024
                 SetState(STATE_SHRUG);
                 TurnAround();
             }
+        }
+
+        private void BasherEnter()
+        {
+            SetAnimation(ANIMATION_BASHER, onAnimationFrame: OnBasherFrame);
+            SetSpeedMultiplier(0);
+        }
+
+
+        private void OnBasherFrame(int frameIndex)
+        {
+            if (frameIndex >= 11 && frameIndex <= 15 || frameIndex >= 27)
+            {
+                MoveBy(new Vector2(1, 0));
+            }
+
+            if (frameIndex == 3 || frameIndex == 19)
+            {
+                EventsManager.FireEvent(EVENT_DIG_CHUNK, this);
+            }
+        }
+
+        private void BasherUpdate(GameTime gameTime, float stateTime)
+        {
         }
 
         private void ShrugEnter()

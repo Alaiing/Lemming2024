@@ -13,6 +13,12 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin chtonk.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:chtonk.wav
+
 #begin circle_mask.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -73,6 +79,18 @@
 /processorParam:TextureFormat=Color
 /build:cursor_select.png
 
+#begin dig_mask.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:dig_mask.png
+
 #begin digits.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -96,6 +114,12 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:exit1.png
+
+#begin hatch-sound.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:hatch-sound.wav
 
 #begin hatch.png
 /importer:TextureImporter
@@ -157,6 +181,18 @@
 /processorParam:TextureFormat=Color
 /build:lemming.png
 
+#begin lemmings-level1.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lemmings-level1.wav
+
+#begin letsgo.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:letsgo.wav
+
 #begin level-test-mask.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -205,6 +241,24 @@
 /processorParam:TextureFormat=Color
 /build:level1.png
 
+#begin ohno.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:ohno.wav
+
+#begin oing.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:oing.wav
+
+#begin pop.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:pop.wav
+
 #begin post_game.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -240,4 +294,16 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:radar-frame.png
+
+#begin tongon.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:tongon.wav
+
+#begin zboui.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:zboui.wav
 
