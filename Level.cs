@@ -27,9 +27,9 @@ namespace Lemmings2024
         private int _lemmingsCount;
         public int LemmingsCount => _lemmingsCount;
         private int _lemmingsRate;
-        public int LemmingRate => _lemmingsRate;
-        private float _winRate;
-        public float WinRate => _winRate;
+        public int LemmingsRate => _lemmingsRate;
+        private int _winRate;
+        public int WinRate => _winRate;
         private float _duration;
         public float Duration => _duration;
 
@@ -111,7 +111,7 @@ namespace Lemmings2024
                             _duration = float.Parse(dataValue);
                             break;
                         case nameof(_winRate):
-                            _winRate = float.Parse(dataValue) / 100f;
+                            _winRate = int.Parse(dataValue);
                             break;
                         case nameof(_startScrollOffset):
                             _startScrollOffset = int.Parse(dataValue);

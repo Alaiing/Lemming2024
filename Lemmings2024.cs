@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using Oudidon;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Linq;
 
@@ -31,9 +32,9 @@ namespace Lemmings2024
         private SpriteSheet _lemmingSprite;
         private List<Lemming> _lemmings = new();
 
+        private MouseCursor _mouseCursorMenu;
         private MouseCursor _mouseCursorPoint;
         private MouseCursor _mouseCursorSelect;
-
         private Texture2D _explodeTexture;
         private Color[] _explodeTextureData;
 
@@ -46,6 +47,7 @@ namespace Lemmings2024
         private Texture2D _preGameBackground;
         private Texture2D _postGameBackground;
 
+        private Texture2D _menuBackground;
         private Texture2D _hudTexture;
         private Texture2D _hudSelectTexture;
         private Texture2D _radarFrameTexture;
@@ -55,7 +57,7 @@ namespace Lemmings2024
         private SpriteSheet _digits;
 
         private float _spawnCount;
-        private float _savedLemmings;
+        private int _savedLemmings;
 
         private Character[] _hatches;
         private Character _exit;
@@ -92,6 +94,17 @@ namespace Lemmings2024
 
         private SoundEffect _lemmingLevel1Music;
         private SoundEffectInstance _lemmingLevel1MusicInstance;
+
+        private Effect _fontEffect;
+
+        private SpriteFont _digitsFont;
+        private Texture2D _endGameMessageSprite;
+        private Texture2D _TimesUpMessageSprite;
+        private Texture2D _winMessageSprite;
+        private Texture2D _perfectMessageSprite;
+        private Texture2D _loseMessageSprite;
+        private Texture2D _nextWinMessageSprite;
+        private Texture2D _nextLoseMessageSprite;
 
         protected override void Initialize()
         {
@@ -141,7 +154,7 @@ namespace Lemmings2024
         protected override void InitStateMachine()
         {
             base.InitStateMachine();
-            AddSate(STATE_MENU);
+            AddSate(STATE_MENU, onEnter: MenuEnter, onUpdate: MenuUpdate, onDraw: MenuDraw);
             AddSate(STATE_PRE_GAME, onEnter: PreGameEnter, onUpdate: PreGameUpdate, onDraw: PreGameDraw);
             AddSate(STATE_GAME, onEnter: GameEnter, onUpdate: GameUpdate, onExit: GameExit, onDraw: GameDraw);
             AddSate(STATE_POST_GAME, onEnter: PostGameEnter, onUpdate: PostGameUpdate, onDraw: PostGameDraw);
@@ -150,17 +163,32 @@ namespace Lemmings2024
         protected override void LoadContent()
         {
             Texture2D mouseCursorTexture = Content.Load<Texture2D>("cursor_point");
-            _mouseCursorPoint = CreateCursor(mouseCursorTexture);
+            _mouseCursorPoint = CreateCursor(mouseCursorTexture, new Vector2(0.5f, 0.5f));
 
             mouseCursorTexture = Content.Load<Texture2D>("cursor_select");
-            _mouseCursorSelect = CreateCursor(mouseCursorTexture);
+            _mouseCursorSelect = CreateCursor(mouseCursorTexture, new Vector2(0.5f, 0.5f));
 
+            mouseCursorTexture = Content.Load<Texture2D>("cursor_menu");
+            _mouseCursorMenu = CreateCursor(mouseCursorTexture, new Vector2(0.5f, 0.5f));
+
+            _menuBackground = Content.Load<Texture2D>("title");
             _preGameBackground = Content.Load<Texture2D>("pre_game");
             _postGameBackground = Content.Load<Texture2D>("post_game");
             _hudTexture = Content.Load<Texture2D>("HUD");
             _hudSelectTexture = Content.Load<Texture2D>("HUD_select");
             _radarFrameTexture = Content.Load<Texture2D>("radar-frame");
             _digits = new SpriteSheet(Content, "digits", 8, 8, Point.Zero);
+
+            _digitsFont = CreateSpriteFont("digits-big", "%0123456789");
+
+            _endGameMessageSprite = Content.Load<Texture2D>("win-message");
+            _TimesUpMessageSprite = Content.Load<Texture2D>("lose-message");
+            _winMessageSprite = Content.Load<Texture2D>("win-cheer-2");
+            _perfectMessageSprite = Content.Load<Texture2D>("win-cheer-1");
+            _loseMessageSprite = Content.Load<Texture2D>("lose-cheer-1");
+            _nextWinMessageSprite = Content.Load<Texture2D>("next-win");
+            _nextLoseMessageSprite = Content.Load<Texture2D>("next-lose");
+
             _radarRect = new Rectangle(416, PLAYGROUND_HEIGHT + 16 + 2, 200, 20);
             _radarRatio = (float)PLAYGROUND_WIDTH / _radarRect.Width;
 
@@ -236,11 +264,30 @@ namespace Lemmings2024
             _mineTextureData = new Color[_mineTexture.Width * _mineTexture.Height];
             _mineTexture.GetData(_mineTextureData);
 
+            _fontEffect = Content.Load<Effect>("File");
+
             _currentLevel = new Level(Content, "level1.data");
-            SetState(STATE_PRE_GAME);
+            SetState(STATE_MENU);
         }
 
-        private MouseCursor CreateCursor(Texture2D cursorTexture)
+        private SpriteFont CreateSpriteFont(string fontAsset, string charsString)
+        {
+            Texture2D fontTexture = Content.Load<Texture2D>(fontAsset);
+            List<Rectangle> glyphBounds = new List<Rectangle>();
+            List<Rectangle> cropping = new List<Rectangle>();
+            List<char> chars = new List<char>();
+            chars.AddRange(charsString);
+            List<Vector3> kerning = new List<Vector3>();
+            for (int i = 0; i < fontTexture.Width / 16; i++)
+            {
+                glyphBounds.Add(new Rectangle(i * 16, 0, 16, 15));
+                cropping.Add(new Rectangle(0, 0, 16, 15));
+                kerning.Add(new Vector3(0, 16, 0));
+            }
+            return new SpriteFont(fontTexture, glyphBounds, cropping, chars, 0, 0, kerning, '0');
+        }
+
+        private MouseCursor CreateCursor(Texture2D cursorTexture, Vector2 origin)
         {
             RenderTarget2D _mouseCursorPointScaled;
             _mouseCursorPointScaled = new RenderTarget2D(GraphicsDevice, cursorTexture.Width * ScreenScaleX, cursorTexture.Height * ScreenScaleY);
@@ -251,7 +298,7 @@ namespace Lemmings2024
             _spriteBatch.End();
             GraphicsDevice.SetRenderTarget(_renderTarget);
 
-            return MouseCursor.FromTexture2D(_mouseCursorPointScaled, _mouseCursorPointScaled.Width / 2, _mouseCursorPointScaled.Height / 2);
+            return MouseCursor.FromTexture2D(_mouseCursorPointScaled, (int)(_mouseCursorPointScaled.Width * origin.X), (int)(_mouseCursorPointScaled.Height * origin.Y));
         }
 
         protected override void Update(GameTime gameTime)
@@ -305,7 +352,7 @@ namespace Lemmings2024
 
         private void OnLemmingBash(Lemming lemming)
         {
-            _currentLevel.Dig(_bashTexture, _bashTextureData, new Point(lemming.PixelPositionX - _bashTexture.Width/2 + (_bashTexture.Width / 2 - 1) * (int)lemming.CurrentScale.X, lemming.PixelPositionY - _bashTexture.Height));
+            _currentLevel.Dig(_bashTexture, _bashTextureData, new Point(lemming.PixelPositionX - _bashTexture.Width / 2 + (_bashTexture.Width / 2 - 1) * (int)lemming.CurrentScale.X, lemming.PixelPositionY - _bashTexture.Height));
         }
 
         private void OnLemmingMine(Lemming lemming)
@@ -353,6 +400,14 @@ namespace Lemmings2024
             _spriteBatch.Draw(_preGameBackground, Vector2.Zero, Color.White);
             _spriteBatch.Draw(_currentLevel.Texture, new Rectangle(0, 0, ScreenWidth, 46), Color.White);
             _spriteBatch.End();
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, effect: _fontEffect);
+            int offset = 46;
+            _spriteBatch.DrawString(_digitsFont, "1", new Vector2(99, 16 + offset), new Color(187, 85, 85, 1));
+            _spriteBatch.DrawString(_digitsFont, _currentLevel.LemmingsCount.ToString(), new Vector2(467, 47 + offset), new Color(51, 136, 221, 1));
+            _spriteBatch.DrawString(_digitsFont, _currentLevel.WinRate.ToString() + "%", new Vector2(163, 63 + offset), new Color(68, 170, 68, 1));
+            _spriteBatch.DrawString(_digitsFont, _currentLevel.LemmingsRate.ToString(), new Vector2(369, 78 + offset), new Color(170, 119, 68, 1));
+            _spriteBatch.DrawString(_digitsFont, ((int)_currentLevel.Duration / 60).ToString(), new Vector2(289, 93 + offset), new Color(68, 170, 153, 1));
+            _spriteBatch.End();
         }
 
         private void PreGameUpdate(GameTime time, float arg2)
@@ -376,6 +431,41 @@ namespace Lemmings2024
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_postGameBackground, Vector2.Zero, Color.White);
             _spriteBatch.End();
+
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, effect: _fontEffect);
+            int savedPercent = _savedLemmings * 100 / _currentLevel.LemmingsCount;
+            _spriteBatch.DrawString(_digitsFont, _currentLevel.WinRate.ToString() + "%", new Vector2(380, 32), new Color(153, 68, 170, 1));
+            _spriteBatch.DrawString(_digitsFont, savedPercent.ToString() + "%", new Vector2(380, 47), new Color(153, 68, 170, 1));
+            _spriteBatch.End();
+
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+
+            // TODO : change if time is up
+            _spriteBatch.Draw(_endGameMessageSprite, new Vector2(ScreenWidth / 2 - _endGameMessageSprite.Width / 2, 1), Color.White);
+
+            Texture2D endGameTexture;
+            Texture2D nextTexture;
+            if (savedPercent >= _currentLevel.WinRate)
+            {
+                if (savedPercent == 100)
+                {
+                    endGameTexture = _perfectMessageSprite;
+                }
+                else
+                {
+                    endGameTexture = _winMessageSprite;
+                }
+                nextTexture = _nextWinMessageSprite;
+            }
+            else
+            {
+                endGameTexture = _loseMessageSprite;
+                nextTexture = _nextLoseMessageSprite;
+            }
+            _spriteBatch.Draw(endGameTexture, new Vector2(ScreenWidth / 2 - endGameTexture.Width / 2, ScreenHeight / 2 - endGameTexture.Height / 2), Color.White);
+            _spriteBatch.Draw(nextTexture, new Vector2(ScreenWidth / 2 - nextTexture.Width / 2, ScreenHeight - nextTexture.Height), Color.White);
+
+            _spriteBatch.End();
         }
 
         private void PostGameUpdate(GameTime time, float arg2)
@@ -383,9 +473,14 @@ namespace Lemmings2024
             if (CameraFade.IsFading)
                 return;
             SimpleControls.GetStates();
+            int savedPercent = _savedLemmings * 100 / _currentLevel.LemmingsCount;
             if (SimpleControls.LeftMouseButtonPressedThisFrame())
             {
                 CameraFade.FadeToBlack(FADE_DURATION, OnFadeDone: () => SetState(STATE_PRE_GAME));
+            }
+            else if (savedPercent < _currentLevel.WinRate && SimpleControls.RightMouseButtonPressedThisFrame())
+            {
+                CameraFade.FadeToBlack(FADE_DURATION, OnFadeDone: () => SetState(STATE_MENU));
             }
         }
 
@@ -394,11 +489,12 @@ namespace Lemmings2024
             Mouse.SetCursor(_mouseCursorPoint);
             _spawnCount = 0;
             _spawnTimer = 0;
+            _savedLemmings = 0;
             for (int i = 0; i < _currentLevel.HatchPositions.Length; i++)
             {
                 ShowHatch(i);
             }
-            _currentSpawnRate = _currentLevel.LemmingRate;
+            _currentSpawnRate = _currentLevel.LemmingsRate;
             _currentLevel.AvailableActions.CopyTo(_availableActions, 0);
             _exit.MoveTo(_currentLevel.ExitPosition.ToVector2());
             ScrollOffset = _currentLevel.StartScrollOffset;
@@ -657,12 +753,12 @@ namespace Lemmings2024
                 if (_currentLevel.AvailableActions[i] > 0)
                 {
                     int offset = (i + 2) * 32;
-                    DrawNumber(_availableActions[i], startPosition + new Vector2(offset, 0));
+                    DrawNumber(_availableActions[i], startPosition + new Vector2(offset, 0), _digits);
                 }
             }
 
-            DrawNumber(_currentLevel.LemmingRate, startPosition);
-            DrawNumber((int)_currentSpawnRate, startPosition + new Vector2(32, 0));
+            DrawNumber(_currentLevel.LemmingsRate, startPosition, _digits);
+            DrawNumber((int)_currentSpawnRate, startPosition + new Vector2(32, 0), _digits);
 
             _spriteBatch.Draw(_hudSelectTexture, new Vector2((_currentLemmingAction + 2) * 32, 176), Color.White);
             _spriteBatch.End();
@@ -688,11 +784,47 @@ namespace Lemmings2024
             _spriteBatch.End();
         }
 
-        private void DrawNumber(int number, Vector2 position)
+        private void DrawNumber(int number, Vector2 position, SpriteSheet digits)
         {
-            _digits.DrawFrame(number / 10, _spriteBatch, position, Point.Zero, 0, Vector2.One, Color.White);
-            _digits.DrawFrame(number % 10, _spriteBatch, position + new Vector2(8, 0), Point.Zero, 0, Vector2.One, Color.White);
+            digits.DrawFrame(number / 10, _spriteBatch, position, Point.Zero, 0, Vector2.One, Color.White);
+            digits.DrawFrame(number % 10, _spriteBatch, position + new Vector2(digits.FrameWidth, 0), Point.Zero, 0, Vector2.One, Color.White);
         }
+
+        private void MenuEnter()
+        {
+            CameraFade.FadeFromBlack(FADE_DURATION);
+            Mouse.SetCursor(_mouseCursorMenu);
+        }
+
+        private void MenuUpdate(GameTime gameTime, float stateTime)
+        {
+            if (CameraFade.IsFading)
+            {
+                return;
+            }
+
+            SimpleControls.GetStates();
+            Point mousePosition = SimpleControls.GetMousePosition();
+            Point scaledMousePosition = new Point(mousePosition.X / ScreenScaleX, mousePosition.Y / ScreenScaleY);
+
+            Rectangle startGameRectangle = new Rectangle(15, 135, 104, 37);
+
+            if (SimpleControls.LeftMouseButtonPressedThisFrame())
+            {
+                if (startGameRectangle.Contains(scaledMousePosition))
+                {
+                    CameraFade.FadeToBlack(FADE_DURATION, () => SetState(STATE_PRE_GAME));
+                }
+            }
+        }
+
+        private void MenuDraw(SpriteBatch gameTime, GameTime stateTime)
+        {
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
+            _spriteBatch.Draw(_menuBackground, Vector2.Zero, Color.White);
+            _spriteBatch.End();
+        }
+
         #endregion
 
         #region Actions
@@ -716,9 +848,9 @@ namespace Lemmings2024
 
             _currentSpawnRate = _currentSpawnRate + (index * 2 - 1) * DeltaTime * RATE_INCREASE_SPEED;
 
-            if (_currentSpawnRate <= _currentLevel.LemmingRate || _currentSpawnRate >= 99)
+            if (_currentSpawnRate <= _currentLevel.LemmingsRate || _currentSpawnRate >= 99)
             {
-                _currentSpawnRate = Math.Clamp(_currentSpawnRate, _currentLevel.LemmingRate, 99); ;
+                _currentSpawnRate = Math.Clamp(_currentSpawnRate, _currentLevel.LemmingsRate, 99); ;
                 return;
             }
 
