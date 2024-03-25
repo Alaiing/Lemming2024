@@ -266,7 +266,7 @@ namespace Lemmings2024
             _fontEffect = Content.Load<Effect>("File");
             _colorEffect = Content.Load<Effect>("PlainColor");
 
-            _currentLevel = new Level(Content, "level1.data");
+            _currentLevel = new Level(Content, "level12.data");
             SetState(STATE_MENU);
         }
 
@@ -331,7 +331,7 @@ namespace Lemmings2024
 
         private void OnLemmingExplode(Lemming explodingLemming)
         {
-            _currentLevel.Dig(_explodeTexture, _explodeTextureData, new Point(explodingLemming.PixelPositionX - _explodeTexture.Width / 2, explodingLemming.PixelPositionY - _explodeTexture.Height / 2), forceDig: false);
+            _currentLevel.Dig(_explodeTexture, _explodeTextureData, new Point(explodingLemming.PixelPositionX - _explodeTexture.Width / 2, explodingLemming.PixelPositionY - _explodeTexture.Height / 2), forceDig: true);
         }
 
         private void OnLemmingStartDigLine(Lemming lemming)
@@ -397,6 +397,7 @@ namespace Lemmings2024
                 }
             }
 
+            Mouse.SetCursor(_mouseCursorMenu);
             CameraFade.FadeFrom(Color.Black, FADE_DURATION);
         }
 
@@ -437,6 +438,7 @@ namespace Lemmings2024
 
         private void PostGameEnter()
         {
+            Mouse.SetCursor(_mouseCursorMenu);
             CameraFade.FadeFromBlack(FADE_DURATION);
         }
 
@@ -555,7 +557,7 @@ namespace Lemmings2024
         private void OnHatchOpen()
         {
             StartSpawn();
-            //_lemmingLevel1MusicInstance.Play();
+            _lemmingLevel1MusicInstance.Play();
         }
 
         private void StartSpawn()

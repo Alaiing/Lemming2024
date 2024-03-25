@@ -228,13 +228,13 @@ namespace Oudidon
                 {
                     spriteEffects |= SpriteEffects.FlipHorizontally;
                     scale.X = -scale.X;
-                    origin.X = FrameWidth - origin.X;
+                    origin.X = FrameWidth - 1 - origin.X;
                 }
                 if (scale.Y < 0)
                 {
                     spriteEffects |= SpriteEffects.FlipVertically;
                     scale.Y = -scale.Y;
-                    origin.Y = FrameHeight - origin.Y;
+                    origin.Y = FrameHeight - 1 - origin.Y;
                 }
                 for (int i = 0; i < _layers.Count; i++)
                 {

@@ -656,8 +656,7 @@ namespace Lemmings2024
                 return;
             }
 
-            int offset = _currentScale.X > 0 ? 0 : SpriteSheet.FrameWidth - SpriteSheet.DefaultPivot.X * 2 - 1;
-            if (!IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX + offset, PixelPositionY - CLIMBER_TEST))))
+            if (!IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX, PixelPositionY - CLIMBER_TEST))))
             {
                 SetState(STATE_END_CLIMB);
             }
@@ -752,7 +751,7 @@ namespace Lemmings2024
         {
             Color groundColor;
 
-            int offsetX = PixelPositionX + BUILD_WIDTH / 2;
+            int offsetX = PixelPositionX + Math.Sign(_currentScale.X) * BUILD_WIDTH / 2;
             int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
             groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (IsWalkable(groundColor))

@@ -51,6 +51,7 @@ namespace Lemmings2024
         public int[] AvailableActions => _availableActions;
         private Color _dirtColor;
         public Color DirtColor => _dirtColor;
+        private Color _maskColor = Color.Black;
 
         private ContentManager _content;
         private string _textureName;
@@ -156,9 +157,7 @@ namespace Lemmings2024
                     if (digTextureData[i].A > 0)
                     {
                         Color color = _maskTextureData[index];
-                        if (color.R > 0
-                            || !flipHorizontal && color.G > 0
-                            || flipHorizontal && color.B > 0)
+                        if (!IsDiggable(color, flipHorizontal))
                         {
                             return false;
                         }
@@ -192,8 +191,7 @@ namespace Lemmings2024
                     Color color = _maskTextureData[index];
                     if (startIndex + textureRelativeIndex < _textureData.Length)
                     {
-                        if (forceDig 
-                            || color.R == 0 && (color.G == 0 || flipHorizontal) && (color.B == 0 || !flipHorizontal))
+                        if (IsDiggable(color, flipHorizontal))
                         {
                             _textureData[index] = Color.Transparent;
                             _maskTextureData[index] = Color.Transparent;
@@ -221,6 +219,11 @@ namespace Lemmings2024
             UpdateTexture();
         }
 
+        public static bool IsDiggable(Color color, bool leftDirection)
+        {
+            return color.R == 0 && (color.G == 0 || leftDirection) && (color.B == 0 || !leftDirection);
+        }
+
         public void Build(Point position, int length)
         {
             if (position.Y >= _texture.Height)
@@ -232,7 +235,7 @@ namespace Lemmings2024
             for (int i = 0; i < length; i++)
             {
                 _textureData[startIndex + i] = _dirtColor;
-                _maskTextureData[startIndex + i] = new Color(0, 136, 0, 255);
+                _maskTextureData[startIndex + i] = _maskColor;
             }
             UpdateTexture();
         }

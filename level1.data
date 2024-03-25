@@ -1,9 +1,9 @@
-﻿_texture = level-test
+﻿_texture = level1
 _trapType = 0
 _exitType = 0
 _hatchPositions = 744,37
 _exitPosition = 890,133
-_lemmingsCount = 1
+_lemmingsCount = 10
 _lemmingsRate = 50
 _duration = 300
 _winRate = 10
