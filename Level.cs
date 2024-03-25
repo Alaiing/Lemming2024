@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -135,25 +136,73 @@ namespace Lemmings2024
             }
         }
 
-        public void Dig(Texture2D digTexture, Color[] digTextureData, Point position, bool flipHorizontal = false)
+        private bool CanDig(Texture2D digTexture, Color[] digTextureData, Point position, bool forceDig, bool flipHorizontal)
         {
+            if (forceDig)
+                return true;
+
+            bool hasDirtToDig = false;
+
             int startIndex = position.Y * _texture.Width + position.X;
             for (int i = 0; i < digTextureData.Length; i++)
             {
                 int x = i % digTexture.Width;
                 if (flipHorizontal)
-                    x = - x;
+                    x = -x;
                 int textureRelativeIndex = x + (i / digTexture.Width) * _texture.Width;
-                if (digTextureData[i].A > 0)
+                int index = startIndex + textureRelativeIndex;
+                if (index >= 0 && index < _maskTextureData.Length)
                 {
+                    if (digTextureData[i].A > 0)
+                    {
+                        Color color = _maskTextureData[index];
+                        if (color.R > 0
+                            || !flipHorizontal && color.G > 0
+                            || flipHorizontal && color.B > 0)
+                        {
+                            return false;
+                        }
+                        else if (color.A > 0)
+                        {
+                            hasDirtToDig = true;
+                        }
+                    }
+                }
+            }
+
+            return hasDirtToDig;
+
+        }
+
+        public bool Dig(Texture2D digTexture, Color[] digTextureData, Point position, bool forceDig = false, bool flipHorizontal = false)
+        {
+            if (!CanDig(digTexture, digTextureData, position, forceDig, flipHorizontal))
+                return false;
+
+            int startIndex = position.Y * _texture.Width + position.X;
+            for (int i = 0; i < digTextureData.Length; i++)
+            {
+                int x = i % digTexture.Width;
+                if (flipHorizontal)
+                    x = -x;
+                int textureRelativeIndex = x + (i / digTexture.Width) * _texture.Width;
+                int index = startIndex + textureRelativeIndex;
+                if (index >= 0 && index < _textureData.Length && digTextureData[i].A > 0)
+                {
+                    Color color = _maskTextureData[index];
                     if (startIndex + textureRelativeIndex < _textureData.Length)
                     {
-                        _textureData[startIndex + textureRelativeIndex] = Color.Transparent;
-                        _maskTextureData[startIndex + textureRelativeIndex] = Color.Transparent;
+                        if (forceDig 
+                            || color.R == 0 && (color.G == 0 || flipHorizontal) && (color.B == 0 || !flipHorizontal))
+                        {
+                            _textureData[index] = Color.Transparent;
+                            _maskTextureData[index] = Color.Transparent;
+                        }
                     }
                 }
             }
             UpdateTexture();
+            return true;
         }
 
         public void Dig(Point position, int length)

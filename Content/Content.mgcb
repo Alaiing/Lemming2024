@@ -13,6 +13,24 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin aaah.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:aaah.wav
+
+#begin bash_mask.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:bash_mask.png
+
 #begin chtonk.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -145,6 +163,18 @@
 /processorParam:TextureFormat=Color
 /build:font-test.png
 
+#begin font.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:font.png
+
 #begin hatch-sound.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -186,6 +216,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:HUD.png
+
+#begin in_text.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:in_text.png
 
 #begin lemming-dirt.png
 /importer:TextureImporter
@@ -343,6 +385,30 @@
 /processorParam:Quality=Best
 /build:oing.wav
 
+#begin out_text.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:out_text.png
+
+#begin ping.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:ping.wav
+
+#begin PlainColor.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:PlainColor.fx
+
 #begin pop.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -385,6 +451,18 @@
 /processorParam:TextureFormat=Color
 /build:radar-frame.png
 
+#begin time_text.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:time_text.png
+
 #begin title.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -402,6 +480,12 @@
 /processor:SoundEffectProcessor
 /processorParam:Quality=Best
 /build:tongon.wav
+
+#begin tuk.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:tuk.wav
 
 #begin win-cheer-1.png
 /importer:TextureImporter
