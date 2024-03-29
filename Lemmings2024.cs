@@ -56,6 +56,7 @@ namespace Lemmings2024
         private Texture2D _hudTexture;
         private Texture2D _hudSelectTexture;
         private Texture2D _radarFrameTexture;
+        private Texture2D _arrowsTexture;
         Rectangle _radarRect;
         float _radarRatio;
 
@@ -107,6 +108,7 @@ namespace Lemmings2024
 
         private Effect _fontEffect;
         private Effect _colorEffect;
+        private Effect _arrowsEffect;
         private SpriteFont _font;
 
         protected override void Initialize()
@@ -180,6 +182,7 @@ namespace Lemmings2024
             _hudTexture = Content.Load<Texture2D>("HUD");
             _hudSelectTexture = Content.Load<Texture2D>("HUD_select");
             _radarFrameTexture = Content.Load<Texture2D>("radar-frame");
+            _arrowsTexture = Content.Load<Texture2D>("arrows");
             _digits = new SpriteSheet(Content, "digits", 8, 8, Point.Zero);
 
             _font = CreateSpriteFont("font", " !%-.0123456789?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -263,10 +266,15 @@ namespace Lemmings2024
             _mineTextureData = new Color[_mineTexture.Width * _mineTexture.Height];
             _mineTexture.GetData(_mineTextureData);
 
+            _currentLevel = new Level(Content, "level12.data");
+
+
             _fontEffect = Content.Load<Effect>("File");
             _colorEffect = Content.Load<Effect>("PlainColor");
+            _arrowsEffect = Content.Load<Effect>("MaskedRepeat");
+            _arrowsEffect.Parameters["Tiling"]?.SetValue(new Vector2(100, 10));
+            _arrowsEffect.Parameters["MaskTexture"]?.SetValue(_currentLevel.MaskTexture);
 
-            _currentLevel = new Level(Content, "level12.data");
             SetState(STATE_MENU);
         }
 
@@ -792,21 +800,26 @@ namespace Lemmings2024
             ScrollOffset = MathHelper.Clamp(ScrollOffset, 0, PLAYGROUND_WIDTH - ScreenWidth);
         }
 
-        private void GameDraw(SpriteBatch batch, GameTime gameTime)
+        private void GameDraw(SpriteBatch spriteBatch, GameTime gameTime)
         {
             GraphicsDevice.SetRenderTarget(_gameRender);
             GraphicsDevice.Clear(new Color(0, 0, 51));
 
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_currentLevel.Texture, Vector2.Zero, Color.White);
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            spriteBatch.Draw(_currentLevel.Texture, Vector2.Zero, Color.White);
             DrawComponents(gameTime);
             DrawParticles();
-            _spriteBatch.End();
+            spriteBatch.End();
+
+            spriteBatch.Begin(samplerState: SamplerState.PointWrap, blendState: BlendState.AlphaBlend, effect: _arrowsEffect);
+            _arrowsEffect.Parameters["Time"]?.SetValue((float)gameTime.TotalGameTime.TotalSeconds * 8);
+            spriteBatch.Draw(_arrowsTexture, new Rectangle(0, 0, 1600, 160), Color.White);
+            spriteBatch.End();
 
             GraphicsDevice.SetRenderTarget(_renderTarget);
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_gameRender, new Rectangle(0, 0, 640, 160), new Rectangle((int)ScrollOffset, 0, 320, 160), Color.White);
-            _spriteBatch.Draw(_hudTexture, new Vector2(0, 176), Color.White);
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            spriteBatch.Draw(_gameRender, new Rectangle(0, 0, 640, 160), new Rectangle((int)ScrollOffset, 0, 320, 160), Color.White);
+            spriteBatch.Draw(_hudTexture, new Vector2(0, 176), Color.White);
             Vector2 startPosition = new Vector2(6, 177);
             for (int i = 0; i < _availableActions.Length; i++)
             {
@@ -820,8 +833,8 @@ namespace Lemmings2024
             DrawNumber(_currentLevel.LemmingsRate, startPosition, _digits);
             DrawNumber((int)_currentSpawnRate, startPosition + new Vector2(32, 0), _digits);
 
-            _spriteBatch.Draw(_hudSelectTexture, new Vector2((_currentLemmingAction + 2) * 32, 176), Color.White);
-            _spriteBatch.End();
+            spriteBatch.Draw(_hudSelectTexture, new Vector2((_currentLemmingAction + 2) * 32, 176), Color.White);
+            spriteBatch.End();
 
             DrawRadar();
             DrawInfos();
@@ -909,11 +922,11 @@ namespace Lemmings2024
             }
         }
 
-        private void MenuDraw(SpriteBatch gameTime, GameTime stateTime)
+        private void MenuDraw(SpriteBatch spriteBatch, GameTime gameTime)
         {
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
-            _spriteBatch.Draw(_menuBackground, Vector2.Zero, Color.White);
-            _spriteBatch.End();
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
+            spriteBatch.Draw(_menuBackground, Vector2.Zero, Color.White);
+            spriteBatch.End();
         }
 
         #endregion

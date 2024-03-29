@@ -19,6 +19,18 @@
 /processorParam:Quality=Best
 /build:aaah.wav
 
+#begin arrows.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:arrows.png
+
 #begin bash_mask.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -360,6 +372,12 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:lose-message.png
+
+#begin MaskedRepeat.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:MaskedRepeat.fx
 
 #begin mine-mask.png
 /importer:TextureImporter
