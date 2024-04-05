@@ -33,6 +33,7 @@ namespace Lemmings2024
         public enum ClickType { Pressed, Clicked, DoubleClicked }
 
         private RenderTarget2D _gameRender;
+        private RenderTarget2D _waterRender;
 
         private SpriteSheet _lemmingSprite;
         private List<Lemming> _lemmings = new();
@@ -61,6 +62,10 @@ namespace Lemmings2024
         float _radarRatio;
 
         private SpriteSheet _digits;
+
+        private Texture2D _waterTexture;
+        private float _waterAnimationIndex;
+        private float _waterAnimationSpeed;
 
         private float _spawnCount;
         private int _savedLemmings;
@@ -108,7 +113,9 @@ namespace Lemmings2024
 
         private Effect _fontEffect;
         private Effect _colorEffect;
-        private Effect _arrowsEffect;
+        private Effect _maskedRepeatEffect;
+        private Effect _waterEffect;
+        private Effect _repeatEffect;
         private SpriteFont _font;
 
         protected override void Initialize()
@@ -221,6 +228,7 @@ namespace Lemmings2024
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_WALK, 0, 7, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_FALL, 32, 35, Lemming.BASE_SPEED, new Point(8, 11));
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_DIE_FALL, 176, 191, Lemming.BASE_SPEED);
+            _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_DIE_DROWN, 192, 207, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_OHNO, 160, 175, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_EXPLODE, 221, 221, Lemming.BASE_SPEED);
             _lemmingSprite.RegisterAnimation(Lemming.ANIMATION_DIG_DOWN, 128, 135, Lemming.BASE_SPEED, new Point(9, 11));
@@ -254,6 +262,10 @@ namespace Lemmings2024
             _exit.SetAnimation("Idle");
             Components.Add(_exit);
 
+            _waterTexture = Content.Load<Texture2D>("water");
+            _waterAnimationSpeed = Lemming.BASE_SPEED;
+            _waterRender = new RenderTarget2D(GraphicsDevice, PLAYGROUND_WIDTH, PLAYGROUND_HEIGHT);
+
             _explodeTexture = Content.Load<Texture2D>("circle_mask");
             _explodeTextureData = new Color[_explodeTexture.Width * _explodeTexture.Height];
             _explodeTexture.GetData(_explodeTextureData);
@@ -271,9 +283,11 @@ namespace Lemmings2024
 
             _fontEffect = Content.Load<Effect>("File");
             _colorEffect = Content.Load<Effect>("PlainColor");
-            _arrowsEffect = Content.Load<Effect>("MaskedRepeat");
-            _arrowsEffect.Parameters["Tiling"]?.SetValue(new Vector2(100, 10));
-            _arrowsEffect.Parameters["MaskTexture"]?.SetValue(_currentLevel.MaskTexture);
+            _waterEffect = Content.Load<Effect>("WaterShader");
+            _repeatEffect = Content.Load<Effect>("Repeat");
+            _repeatEffect.Parameters["Tiling"]?.SetValue(new Vector2(10, 1));
+            _maskedRepeatEffect = Content.Load<Effect>("MaskedRepeat");
+            _maskedRepeatEffect.Parameters["Tiling"]?.SetValue(new Vector2(100, 10));
 
             SetState(STATE_MENU);
         }
@@ -544,6 +558,8 @@ namespace Lemmings2024
             _exit.MoveTo(_currentLevel.ExitPosition.ToVector2());
             ScrollOffset = _currentLevel.StartScrollOffset;
 
+            _waterAnimationIndex = 0;
+
             CameraFade.FadeFromBlack(FADE_DURATION, OnFadeDone: StartLevel);
         }
 
@@ -581,6 +597,8 @@ namespace Lemmings2024
 
         private void GameUpdate(GameTime gameTime, float stateTime)
         {
+            _waterAnimationIndex = _waterAnimationIndex + _waterAnimationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+
             if (CameraFade.IsFading)
             {
                 return;
@@ -802,8 +820,28 @@ namespace Lemmings2024
 
         private void GameDraw(SpriteBatch spriteBatch, GameTime gameTime)
         {
+
+            if (_currentLevel.WaterType != Level.WaterTypes.none)
+            {
+                GraphicsDevice.SetRenderTarget(_waterRender);
+                GraphicsDevice.Clear(new Color(0, 0, 0, 0));
+
+                int frameIndex = (int)Math.Floor(_waterAnimationIndex) % 6;
+                spriteBatch.Begin(samplerState: SamplerState.PointWrap, effect: _repeatEffect);
+                _maskedRepeatEffect.Parameters["Tiling"]?.SetValue(new Vector2(10, 1));
+                spriteBatch.Draw(_waterTexture, new Rectangle(0, PLAYGROUND_HEIGHT - 18, _waterRender.Width, 18), new Rectangle(0, frameIndex * 18, _waterTexture.Width, 18), Color.White);
+                spriteBatch.End();
+            }
+
             GraphicsDevice.SetRenderTarget(_gameRender);
             GraphicsDevice.Clear(new Color(0, 0, 51));
+
+            spriteBatch.Begin(samplerState: SamplerState.PointWrap, effect: _waterEffect);
+            _waterEffect.Parameters["MaskTexture"]?.SetValue(_currentLevel.MaskTexture);
+            _waterEffect.Parameters["AlphaClip"]?.SetValue(0.9f);
+            spriteBatch.Draw(_waterRender, new Vector2(0, 0), Color.White);
+            spriteBatch.End();
+
 
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             spriteBatch.Draw(_currentLevel.Texture, Vector2.Zero, Color.White);
@@ -811,8 +849,11 @@ namespace Lemmings2024
             DrawParticles();
             spriteBatch.End();
 
-            spriteBatch.Begin(samplerState: SamplerState.PointWrap, blendState: BlendState.AlphaBlend, effect: _arrowsEffect);
-            _arrowsEffect.Parameters["Time"]?.SetValue((float)gameTime.TotalGameTime.TotalSeconds * 8);
+            spriteBatch.Begin(samplerState: SamplerState.PointWrap, blendState: BlendState.AlphaBlend, effect: _maskedRepeatEffect);
+            _maskedRepeatEffect.Parameters["Tiling"]?.SetValue(new Vector2(100, 10));
+            _maskedRepeatEffect.Parameters["MaskTexture"]?.SetValue(_currentLevel.MaskTexture);
+            _maskedRepeatEffect.Parameters["Time"]?.SetValue((float)gameTime.TotalGameTime.TotalSeconds * 8);
+            _maskedRepeatEffect.Parameters["AlphaClip"]?.SetValue(1f);
             spriteBatch.Draw(_arrowsTexture, new Rectangle(0, 0, 1600, 160), Color.White);
             spriteBatch.End();
 
@@ -843,7 +884,7 @@ namespace Lemmings2024
 
         private void DrawRadar()
         {
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.Opaque, effect: _colorEffect);
+            _spriteBatch.Begin(samplerState: SamplerState.PointWrap, blendState: BlendState.Opaque, effect: _colorEffect);
             _spriteBatch.Draw(_currentLevel.MaskTexture, _radarRect, _radarColor);
             _spriteBatch.End();
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.Opaque);

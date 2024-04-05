@@ -1,0 +1,13 @@
+﻿_texture = level11
+_trapType = 0
+_exitType = 0
+_hatchPositions = 683,72
+_exitPosition = 926,136
+_lemmingsCount = 1
+_lemmingsRate = 50
+_duration = 300
+_winRate = 80
+_startScrollOffset = 640
+_availableActions = 10,10,10,10,10,10,10,10
+_dirtColor = 255,255,102
+_waterType = water

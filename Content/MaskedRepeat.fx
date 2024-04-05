@@ -7,8 +7,8 @@
 #define PS_SHADERMODEL ps_4_0_level_9_1
 #endif
 
-Texture2D SpriteTexture : register(t0);
 Texture2D MaskTexture : register(t1);
+uniform float AlphaClip;
 uniform float Time;
 uniform float2 Tiling;
 
@@ -31,17 +31,25 @@ struct VertexShaderOutput
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
+    float2 maskTexCoord = input.TextureCoordinates;
     float4 maskColor = tex2D(MaskTextureSampler, input.TextureCoordinates);
 	
-    return maskColor;
-	
     clip(maskColor.a - 0.1f);
-	
+    
+    clip(AlphaClip - maskColor.a);
+    
+    clip(maskColor.g + maskColor.b - 0.1f);
+       
     float2 texCoord = input.TextureCoordinates;
     texCoord.x = texCoord.x * Tiling.x;
     texCoord.y = texCoord.y * Tiling.y;
-    texCoord.x += 1 - abs(sin(Time)) / 2;
-
+    
+    float gMask = step(maskColor.g, 0);
+    float bMask = step(maskColor.b, 0);
+    
+    texCoord.x += gMask * abs(sin(Time)) / 2 + bMask * (1 - abs(sin(Time)) / 2);
+    texCoord.x = gMask * (1 - texCoord.x) + bMask * texCoord.x;
+    
     return tex2D(SpriteTextureSampler, texCoord) * input.Color;
 }
 

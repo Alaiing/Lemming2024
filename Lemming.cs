@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Audio;
 using Oudidon;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -24,6 +25,7 @@ namespace Lemmings2024
         public const string STATE_WALK = "Walk";
         public const string STATE_FALL = "Fall";
         public const string STATE_DIE_FALL = "DieFall";
+        public const string STATE_DIE_DROWN = "DieDrown";
         public const string STATE_EXPLODE = "Explode";
         public const string STATE_DIG_DOWN = "DigDown";
         public const string STATE_STOP = "Stop";
@@ -40,6 +42,7 @@ namespace Lemmings2024
         public const string ANIMATION_WALK = "Walk";
         public const string ANIMATION_FALL = "Fall";
         public const string ANIMATION_DIE_FALL = "DieFall";
+        public const string ANIMATION_DIE_DROWN = "DieDrown";
         public const string ANIMATION_OHNO = "Ohno";
         public const string ANIMATION_EXPLODE = "Explode";
         public const string ANIMATION_DIG_DOWN = "DigDown";
@@ -63,6 +66,7 @@ namespace Lemmings2024
 
         public const float BASE_SPEED = 50f / 3f;
         public const float FALL_SPEED = 2f;
+        private const float WATER_DROWN_HEIGHT = 10;
 
         private Level _currentLevel;
         private SimpleStateMachine _simpleStateMachine;
@@ -79,11 +83,15 @@ namespace Lemmings2024
         public bool IsClimber { get; set; }
         public bool IsFloater { get; set; }
 
+        private bool _inWater;
+
         private static SoundEffect _popSound;
         private static SoundEffectInstance _popSoundInstance;
 
         private static SoundEffect _splotchSound;
         private static SoundEffectInstance _splotchSoundInstance;
+        private static SoundEffect _ploufSound;
+        private static SoundEffectInstance _ploufSoundInstance;
         private static SoundEffect _lemmingDieSound;
         private static SoundEffectInstance _lemmingDieSoundInstance;
         private static SoundEffect _buildEndSound;
@@ -128,6 +136,8 @@ namespace Lemmings2024
                 _buildEndSound = game.Content.Load<SoundEffect>("tuk");
                 _buildEndSoundInstance = _buildEndSound.CreateInstance();
             }
+
+            _inWater = false;
         }
 
         public void InitStateMachine()
@@ -136,6 +146,7 @@ namespace Lemmings2024
             _simpleStateMachine.AddState(STATE_WALK, OnEnter: WalkEnter, OnUpdate: WalkUpdate);
             _simpleStateMachine.AddState(STATE_FALL, OnEnter: FallEnter, OnUpdate: FallUpdate);
             _simpleStateMachine.AddState(STATE_DIE_FALL, OnEnter: DieFallEnter);
+            _simpleStateMachine.AddState(STATE_DIE_DROWN, OnEnter: DieDrownEnter);
             _simpleStateMachine.AddState(STATE_EXPLODE, OnEnter: ExplodeEnter, OnUpdate: ExplodeUpdate);
             _simpleStateMachine.AddState(STATE_DIG_DOWN, OnEnter: DigDownEnter, OnExit: DigDownExit);
             _simpleStateMachine.AddState(STATE_STOP, OnEnter: StopEnter, OnUpdate: StopUpdate, OnExit: StopExit);
@@ -310,11 +321,6 @@ namespace Lemmings2024
             }
         }
 
-        private bool IsWalkable(Color color)
-        {
-            return color.A > 0;
-        }
-
         private bool IsOnWalkableGround()
         {
             return IsOnWalkableGround(Point.Zero);
@@ -327,7 +333,7 @@ namespace Lemmings2024
                 return false;
 
             Color groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
-            return IsWalkable(groundColor);
+            return groundColor.IsWalkable();
         }
 
         #region States
@@ -391,7 +397,7 @@ namespace Lemmings2024
         {
             int indexAtPosition = IndexInLevelData(x, y - 1);
             int delta = 0;
-            while (indexAtPosition >= 0 && IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]) && delta <= WALL_HEIGHT + 1)
+            while (indexAtPosition >= 0 && _currentLevel.MaskTextureData[indexAtPosition].IsWalkable() && delta <= WALL_HEIGHT + 1)
             {
                 delta++;
                 indexAtPosition -= Lemmings2024.PLAYGROUND_WIDTH;
@@ -404,7 +410,7 @@ namespace Lemmings2024
         {
             int indexAtPosition = IndexInLevelData(x, y);
             int delta = 0;
-            while (indexAtPosition < _currentLevel.MaskTextureData.Length && !IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]) && delta <= WALL_HEIGHT)
+            while (indexAtPosition < _currentLevel.MaskTextureData.Length && !_currentLevel.MaskTextureData[indexAtPosition].IsWalkable() && delta <= WALL_HEIGHT)
             {
                 delta++;
                 indexAtPosition += Lemmings2024.PLAYGROUND_WIDTH;
@@ -455,6 +461,13 @@ namespace Lemmings2024
         private void Fall(Action onLand, Action onLandDie)
         {
             int indexInLevelTexture = IndexInLevelData(PixelPositionX, PixelPositionY);
+
+            if (_inWater && PixelPositionY > Lemmings2024.PLAYGROUND_HEIGHT - WATER_DROWN_HEIGHT)
+            {
+                SetState(STATE_DIE_DROWN);
+                return;
+            }
+
             if (PixelPositionY > Lemmings2024.PLAYGROUND_HEIGHT + 5)
             {
                 _lemmingDieSoundInstance.Stop();
@@ -476,7 +489,7 @@ namespace Lemmings2024
 
 
             Color groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
-            if (groundColor.A > 0)
+            if (groundColor.IsWalkable())
             {
                 if (PixelPositionY - _fallStartHeight < DEATH_HEIGHT)
                 {
@@ -487,6 +500,10 @@ namespace Lemmings2024
                     onLandDie?.Invoke();
                 }
             }
+            else if (groundColor.IsWater())
+            {
+                _inWater = true;
+            }
         }
 
         private void DieFallEnter()
@@ -496,9 +513,15 @@ namespace Lemmings2024
             _splotchSoundInstance.Play();
         }
 
+        private void DieDrownEnter()
+        {
+            MoveDirection = new Vector2(CurrentScale.X, 0);
+            SetAnimation(ANIMATION_DIE_DROWN, onAnimationEnd: Kill);
+            _ploufSoundInstance?.Play();
+        }
+
         private void ExplodeEnter()
         {
-            // TODO: add countdown
             _countDown.Deactivate();
             SetSpeedMultiplier(0f);
             SetAnimation(ANIMATION_OHNO, onAnimationEnd:
@@ -523,7 +546,7 @@ namespace Lemmings2024
             int offsetX = PixelPositionX;
             int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
             groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
-            if (!IsWalkable(groundColor))
+            if (!groundColor.IsWalkable())
             {
                 MoveBy(new Vector2(0, FALL_SPEED * _baseSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds));
             }
@@ -584,7 +607,7 @@ namespace Lemmings2024
             int startIndex = PixelPositionY * Lemmings2024.PLAYGROUND_WIDTH + PixelPositionX;
             for (int i = 0; i < length; i++)
             {
-                if (_currentLevel.MaskTextureData[startIndex + i].A > 0)
+                if (_currentLevel.MaskTextureData[startIndex + i].IsWalkable())
                 {
                     if (_currentLevel.MaskTextureData[startIndex + i].R == 0
                     && _currentLevel.MaskTextureData[startIndex + i].G == 0
@@ -625,7 +648,7 @@ namespace Lemmings2024
         {
             int indexAtPosition = IndexInLevelData(PixelPositionX, PixelPositionY + 1);
             // TODO: test more pixels
-            if (indexAtPosition < _currentLevel.MaskTextureData.Length && !IsWalkable(_currentLevel.MaskTextureData[indexAtPosition]))
+            if (indexAtPosition < _currentLevel.MaskTextureData.Length && !_currentLevel.MaskTextureData[indexAtPosition].IsWalkable())
             {
                 SetState(STATE_WALK);
             }
@@ -656,7 +679,7 @@ namespace Lemmings2024
                 return;
             }
 
-            if (!IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX, PixelPositionY - CLIMBER_TEST))))
+            if (!_currentLevel.GetMaskPixel(new Point(PixelPositionX, PixelPositionY - CLIMBER_TEST)).IsWalkable())
             {
                 SetState(STATE_END_CLIMB);
             }
@@ -666,7 +689,7 @@ namespace Lemmings2024
         {
             for (int i = 1; i < 5; i++)
             {
-                if (IsWalkable(_currentLevel.GetMaskPixel(new Point(PixelPositionX - i * (int)_currentScale.X, PixelPositionY - 10))))
+                if (_currentLevel.GetMaskPixel(new Point(PixelPositionX - i * (int)_currentScale.X, PixelPositionY - 10)).IsWalkable())
                 {
                     return false;
                 }
@@ -754,7 +777,7 @@ namespace Lemmings2024
             int offsetX = PixelPositionX + Math.Sign(_currentScale.X) * BUILD_WIDTH / 2;
             int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
             groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
-            if (IsWalkable(groundColor))
+            if (groundColor.IsWalkable())
             {
                 int positionChange = FindUpwardPosition(offsetX, PixelPositionY);
                 if (positionChange > WALL_HEIGHT)

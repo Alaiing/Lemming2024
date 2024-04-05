@@ -16,6 +16,7 @@ namespace Lemmings2024
     public class Level
     {
         private const string MASK_SUFFIX = "-mask";
+        public enum WaterTypes { none, water, acid, lava }
 
         private Texture2D _texture;
         public Texture2D Texture => _texture;
@@ -52,6 +53,9 @@ namespace Lemmings2024
         private Color _dirtColor;
         public Color DirtColor => _dirtColor;
         private Color _maskColor = Color.Black;
+
+        private WaterTypes _waterType = WaterTypes.none;
+        public WaterTypes WaterType => _waterType;
 
         private ContentManager _content;
         private string _textureName;
@@ -126,6 +130,9 @@ namespace Lemmings2024
                             string[] color = dataValue.Split(',');
                             _dirtColor = new Color(int.Parse(color[0].Trim()), int.Parse(color[1].Trim()), int.Parse(color[2].Trim()), 255);
                             break;
+                        case nameof(_waterType):
+                            _waterType = (WaterTypes)Enum.Parse(typeof(WaterTypes), dataValue.ToLower());
+                            break;
                     }
                 }
 
@@ -161,7 +168,7 @@ namespace Lemmings2024
                         {
                             return false;
                         }
-                        else if (color.A > 0)
+                        else if (color.IsWalkable())
                         {
                             hasDirtToDig = true;
                         }
@@ -170,7 +177,6 @@ namespace Lemmings2024
             }
 
             return hasDirtToDig;
-
         }
 
         public bool Dig(Texture2D digTexture, Color[] digTextureData, Point position, bool forceDig = false, bool flipHorizontal = false)
