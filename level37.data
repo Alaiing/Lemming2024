@@ -1,0 +1,16 @@
+﻿_id = 7
+_title = Been there, seen it, done it
+_musicIndex = 1
+_texture = level37
+_trapType = 0
+_exitType = 0
+_hatchPositions = 989,76
+_exitPosition = 509,141
+_lemmingsCount = 75
+_lemmingsRate = 50
+_duration = 300
+_winRate = 73
+_startScrollOffset = 900
+_availableActions = 20,20,20,20,20,20,20,20
+_dirtColor = 255,255,102
+_waterType = water

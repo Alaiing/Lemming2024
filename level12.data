@@ -1,4 +1,7 @@
-﻿_texture = level12
+﻿_id = 12
+_title = Patience
+_musicIndex = 0
+_texture = level12
 _trapType = 0
 _exitType = 0
 _hatchPositions = 664,76

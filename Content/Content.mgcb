@@ -187,6 +187,12 @@
 /processorParam:TextureFormat=Color
 /build:font.png
 
+#begin glouglou.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:glouglou.wav
+
 #begin hatch-sound.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -229,7 +235,7 @@
 /processorParam:TextureFormat=Color
 /build:HUD.png
 
-#begin in_text.png
+#begin icon_music.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -239,7 +245,19 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:in_text.png
+/build:icon_music.png
+
+#begin icon_sfx.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:icon_sfx.png
 
 #begin lemming-dirt.png
 /importer:TextureImporter
@@ -265,11 +283,17 @@
 /processorParam:TextureFormat=Color
 /build:lemming.png
 
-#begin lemmings-level1.wav
+#begin lemmings-music-1.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
 /processorParam:Quality=Best
-/build:lemmings-level1.wav
+/build:lemmings-music-1.wav
+
+#begin lemmings-music-2.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lemmings-music-2.wav
 
 #begin letsgo.wav
 /importer:WavImporter
@@ -373,7 +397,7 @@
 /processorParam:TextureFormat=Color
 /build:level12.png
 
-#begin lose-cheer-1.png
+#begin level37-mask.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -383,9 +407,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:lose-cheer-1.png
+/build:level37-mask.png
 
-#begin lose-message.png
+#begin level37.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -395,7 +419,7 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:lose-message.png
+/build:level37.png
 
 #begin MaskedRepeat.fx
 /importer:EffectImporter
@@ -415,30 +439,6 @@
 /processorParam:TextureFormat=Color
 /build:mine-mask.png
 
-#begin next-lose.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:next-lose.png
-
-#begin next-win.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:next-win.png
-
 #begin ohno.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -451,18 +451,6 @@
 /processorParam:Quality=Best
 /build:oing.wav
 
-#begin out_text.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:out_text.png
-
 #begin ping.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -474,6 +462,12 @@
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
 /build:PlainColor.fx
+
+#begin plouf.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:plouf.wav
 
 #begin pop.wav
 /importer:WavImporter
@@ -523,18 +517,6 @@
 /processorParam:DebugMode=Auto
 /build:Repeat.fx
 
-#begin time_text.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:time_text.png
-
 #begin title.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -576,42 +558,6 @@
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
 /build:WaterShader.fx
-
-#begin win-cheer-1.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:win-cheer-1.png
-
-#begin win-cheer-2.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:win-cheer-2.png
-
-#begin win-message.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:win-message.png
 
 #begin zboui.wav
 /importer:WavImporter

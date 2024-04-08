@@ -1,4 +1,7 @@
-﻿_texture = level1
+﻿_id = 1
+_title = Just dig!
+_musicIndex = 0
+_texture = level1
 _trapType = 0
 _exitType = 0
 _hatchPositions = 744,37
@@ -8,5 +11,5 @@ _lemmingsRate = 50
 _duration = 300
 _winRate = 10
 _startScrollOffset = 640
-_availableActions = 10,10,10,10,10,10,10,10
+_availableActions = 0,0,0,0,0,0,0,10
 _dirtColor = 255,255,102

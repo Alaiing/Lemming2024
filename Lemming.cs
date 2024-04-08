@@ -92,6 +92,8 @@ namespace Lemmings2024
         private static SoundEffectInstance _splotchSoundInstance;
         private static SoundEffect _ploufSound;
         private static SoundEffectInstance _ploufSoundInstance;
+        private static SoundEffect _glouglouSound;
+        private static SoundEffectInstance _glouglouSoundInstance;
         private static SoundEffect _lemmingDieSound;
         private static SoundEffectInstance _lemmingDieSoundInstance;
         private static SoundEffect _buildEndSound;
@@ -135,6 +137,17 @@ namespace Lemmings2024
             {
                 _buildEndSound = game.Content.Load<SoundEffect>("tuk");
                 _buildEndSoundInstance = _buildEndSound.CreateInstance();
+            }
+
+            if (_ploufSound == null)
+            {
+                _ploufSound = game.Content.Load<SoundEffect>("plouf");
+                _ploufSoundInstance = _ploufSound.CreateInstance();
+            }
+            if (_glouglouSound == null)
+            {
+                _glouglouSound = game.Content.Load<SoundEffect>("glouglou");
+                _glouglouSoundInstance = _glouglouSound.CreateInstance();
             }
 
             _inWater = false;
@@ -193,12 +206,6 @@ namespace Lemmings2024
                 _countDown.MoveTo(Position + new Vector2(0, -10));
             }
             _simpleStateMachine.Update(gameTime);
-            //_currentLevelData[IndexInLevelData(PixelPositionX, PixelPositionY)] = Color.Red;
-        }
-
-        public static int IndexInLevelData(int x, int y)
-        {
-            return y * Lemmings2024.PLAYGROUND_WIDTH + x;
         }
 
         public void Walk()
@@ -328,7 +335,7 @@ namespace Lemmings2024
 
         private bool IsOnWalkableGround(Point offset)
         {
-            int indexInLevelTexture = IndexInLevelData(PixelPositionX + offset.X, PixelPositionY + offset.Y);
+            int indexInLevelTexture = _currentLevel.IndexInLevelData(PixelPositionX + offset.X, PixelPositionY + offset.Y);
             if (indexInLevelTexture >= _currentLevel.MaskTextureData.Length)
                 return false;
 
@@ -347,7 +354,12 @@ namespace Lemmings2024
 
         private void WalkUpdate(GameTime time, float arg2)
         {
-            if (IsOnWalkableGround())
+            UpdateWalk();
+        }
+
+        private void UpdateWalk()
+        {
+            if (IsOnWalkableGround(new Point((int)CurrentScale.X, 0)) || IsOnWalkableGround(new Point((int)CurrentScale.X, 1)))
             {
                 int positionChange = FindUpwardPosition(PixelPositionX, PixelPositionY);
                 if (positionChange <= WALL_HEIGHT)
@@ -395,12 +407,12 @@ namespace Lemmings2024
 
         private int FindUpwardPosition(int x, int y)
         {
-            int indexAtPosition = IndexInLevelData(x, y - 1);
+            int indexAtPosition = _currentLevel.IndexInLevelData(x, y - 1);
             int delta = 0;
             while (indexAtPosition >= 0 && _currentLevel.MaskTextureData[indexAtPosition].IsWalkable() && delta <= WALL_HEIGHT + 1)
             {
                 delta++;
-                indexAtPosition -= Lemmings2024.PLAYGROUND_WIDTH;
+                indexAtPosition -= _currentLevel.Width;
             }
 
             return delta;
@@ -408,12 +420,12 @@ namespace Lemmings2024
 
         private int FindDownwardPosition(int x, int y)
         {
-            int indexAtPosition = IndexInLevelData(x, y);
+            int indexAtPosition = _currentLevel.IndexInLevelData(x, y);
             int delta = 0;
             while (indexAtPosition < _currentLevel.MaskTextureData.Length && !_currentLevel.MaskTextureData[indexAtPosition].IsWalkable() && delta <= WALL_HEIGHT)
             {
                 delta++;
-                indexAtPosition += Lemmings2024.PLAYGROUND_WIDTH;
+                indexAtPosition += _currentLevel.Width;
             }
             if (indexAtPosition > _currentLevel.MaskTextureData.Length)
             {
@@ -460,15 +472,15 @@ namespace Lemmings2024
 
         private void Fall(Action onLand, Action onLandDie)
         {
-            int indexInLevelTexture = IndexInLevelData(PixelPositionX, PixelPositionY);
+            int indexInLevelTexture = _currentLevel.IndexInLevelData(PixelPositionX, PixelPositionY);
 
-            if (_inWater && PixelPositionY > Lemmings2024.PLAYGROUND_HEIGHT - WATER_DROWN_HEIGHT)
+            if (_inWater && PixelPositionY > _currentLevel.Height - WATER_DROWN_HEIGHT)
             {
                 SetState(STATE_DIE_DROWN);
                 return;
             }
 
-            if (PixelPositionY > Lemmings2024.PLAYGROUND_HEIGHT + 5)
+            if (PixelPositionY > _currentLevel.Height + 5)
             {
                 _lemmingDieSoundInstance.Stop();
                 _lemmingDieSoundInstance.Play();
@@ -516,8 +528,18 @@ namespace Lemmings2024
         private void DieDrownEnter()
         {
             MoveDirection = new Vector2(CurrentScale.X, 0);
-            SetAnimation(ANIMATION_DIE_DROWN, onAnimationEnd: Kill);
+            SetAnimation(ANIMATION_DIE_DROWN, onAnimationEnd: Kill, onAnimationFrame: OnDieDrownFrame);
+            _ploufSoundInstance?.Stop();
             _ploufSoundInstance?.Play();
+        }
+
+        private void OnDieDrownFrame(int frameIndex)
+        {
+            if (frameIndex == 11)
+            {
+                _glouglouSoundInstance?.Stop();
+                _glouglouSoundInstance?.Play();
+            }
         }
 
         private void ExplodeEnter()
@@ -529,6 +551,7 @@ namespace Lemmings2024
                 {
                     DrawOrder = 99;
                     SetAnimation(ANIMATION_EXPLODE, onAnimationEnd: Destroy);
+                    _popSoundInstance.Stop();
                     _popSoundInstance.Play();
                 });
             _typeName = "BOMBER";
@@ -544,7 +567,7 @@ namespace Lemmings2024
             Color groundColor;
 
             int offsetX = PixelPositionX;
-            int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
+            int indexInLevelTexture = _currentLevel.IndexInLevelData(offsetX, PixelPositionY);
             groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (!groundColor.IsWalkable())
             {
@@ -589,22 +612,14 @@ namespace Lemmings2024
             else if (frameIndex == 0)
             {
                 SetScale(new Vector2(-CurrentScale.X, CurrentScale.Y));
-                if (CurrentScale.X < 0)
-                {
-                    SetPivotOffset(new Point(1, 0));
-                }
-                else
-                {
-                    ResetPivotOffset();
-                }
             }
         }
 
         private bool CanDigDown()
         {
-            int endPosition = Math.Min(Lemmings2024.PLAYGROUND_WIDTH, PixelPositionX + Lemmings2024.LINE_DIG_LENGTH);
+            int endPosition = Math.Min(_currentLevel.Width, PixelPositionX + Lemmings2024.LINE_DIG_LENGTH);
             int length = endPosition - PixelPositionX;
-            int startIndex = PixelPositionY * Lemmings2024.PLAYGROUND_WIDTH + PixelPositionX;
+            int startIndex = PixelPositionY * _currentLevel.Width + PixelPositionX;
             for (int i = 0; i < length; i++)
             {
                 if (_currentLevel.MaskTextureData[startIndex + i].IsWalkable())
@@ -646,7 +661,7 @@ namespace Lemmings2024
 
         private void StopUpdate(GameTime gameTime, float stateTime)
         {
-            int indexAtPosition = IndexInLevelData(PixelPositionX, PixelPositionY + 1);
+            int indexAtPosition = _currentLevel.IndexInLevelData(PixelPositionX, PixelPositionY + 1);
             // TODO: test more pixels
             if (indexAtPosition < _currentLevel.MaskTextureData.Length && !_currentLevel.MaskTextureData[indexAtPosition].IsWalkable())
             {
@@ -750,12 +765,7 @@ namespace Lemmings2024
 
         private void OnBuildEnd()
         {
-            _buildCount++;
             MoveBy(new Vector2(CurrentScale.X * 2, -1));
-            if (_buildCount > 9)
-            {
-                _buildEndSoundInstance.Play();
-            }
             if (_buildCount >= 12)
             {
                 SetState(STATE_SHRUG);
@@ -767,6 +777,12 @@ namespace Lemmings2024
             if (frameIndex == 9)
             {
                 _currentLevel.Build(new Point(PixelPositionX + (CurrentScale.X < 0 ? -BUILD_WIDTH : 0), PixelPositionY - 1), BUILD_WIDTH);
+
+                _buildCount++;
+                if (_buildCount > 9)
+                {
+                    _buildEndSoundInstance.Play();
+                }
             }
         }
 
@@ -775,7 +791,7 @@ namespace Lemmings2024
             Color groundColor;
 
             int offsetX = PixelPositionX + Math.Sign(_currentScale.X) * BUILD_WIDTH / 2;
-            int indexInLevelTexture = IndexInLevelData(offsetX, PixelPositionY);
+            int indexInLevelTexture = _currentLevel.IndexInLevelData(offsetX, PixelPositionY);
             groundColor = _currentLevel.MaskTextureData[indexInLevelTexture];
             if (groundColor.IsWalkable())
             {
@@ -788,12 +804,26 @@ namespace Lemmings2024
                     return;
                 }
             }
-            if (!CanClimb())
+            if (!CanBuild())
             {
                 SetState(STATE_SHRUG);
                 TurnAround();
             }
         }
+
+        private bool CanBuild()
+        {
+            for (int i = -1; i < 2; i++)
+            {
+                if (_currentLevel.GetMaskPixel(new Point(PixelPositionX - i * (int)_currentScale.X, PixelPositionY - 10)).IsWalkable())
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
 
         private void BasherEnter()
         {
@@ -814,33 +844,6 @@ namespace Lemmings2024
             {
                 EventsManager.FireEvent(EVENT_BASH, this);
             }
-        }
-
-        private bool CanBash()
-        {
-            int startingIndex = (PixelPositionY - 1) * _currentLevel.Texture.Width + PixelPositionX + (int)_currentScale.X;
-            for (int x = 0; x < 7; x++)
-            {
-                for (int y = 0; y < 9; y++)
-                {
-                    int index = startingIndex + x * (int)_currentScale.X - y * _currentLevel.Texture.Width;
-                    if (index >= 0 && _currentLevel.MaskTextureData[index].A > 0)
-                    {
-                        if (_currentLevel.MaskTextureData[index].R > 0
-                            || (_currentScale.X > 0 && _currentLevel.MaskTextureData[index].G > 0)
-                            || (_currentScale.X < 0 && _currentLevel.MaskTextureData[index].B > 0))
-                        {
-                            return false;
-                        }
-                        else
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
         }
 
         private void BasherUpdate(GameTime gameTime, float stateTime)

@@ -18,9 +18,18 @@ namespace Lemmings2024
         private const string MASK_SUFFIX = "-mask";
         public enum WaterTypes { none, water, acid, lava }
 
+        private int _id;
+        public int Id => _id;
+        private string _title;
+        public string Title => _title;
+        private int _musicIndex;
+        public int MusicIndex => _musicIndex;
+
         private Texture2D _texture;
         public Texture2D Texture => _texture;
         private Color[] _textureData;
+        public int Width => _texture.Width;
+        public int Height => _texture.Height;
 
         private Texture2D _maskTexture;
         public Texture2D MaskTexture => _maskTexture;
@@ -83,6 +92,15 @@ namespace Lemmings2024
 
                     switch (dataName)
                     {
+                        case nameof(_id):
+                            _id = int.Parse(dataValue);
+                            break;
+                        case nameof(_title):
+                            _title = dataValue;
+                            break;
+                        case nameof(_musicIndex):
+                            _musicIndex = int.Parse(dataValue);
+                            break;
                         case nameof(_texture):
                             _textureName = dataValue;
                             break;
@@ -142,6 +160,11 @@ namespace Lemmings2024
             {
                 Debug.WriteLine(e);
             }
+        }
+
+        public int IndexInLevelData(int x, int y)
+        {
+            return y * Width + x;
         }
 
         private bool CanDig(Texture2D digTexture, Color[] digTextureData, Point position, bool forceDig, bool flipHorizontal)
